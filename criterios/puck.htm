@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Critério de Puck</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+
+<script>
+
+/*
+Nov 08
+O modo 02, melhorado
+*/
+
+    var E1_f_entrada=0.0;
+    var NU12_f_entrada=0.0;
+    var m_sigF_entrada=0.0;
+    var p_plus_TL_entrada=0.0;
+    var p_minus_TL_entrada=0.0;
+    var sigma_1_D_entrada=0.0;
+    var tau12_C_entrada=0.0;
+    var R_TT_A_entrada=0.0;
+    var p_minus_TT_entrada=0.0;
+
+/*
+Agosto 25:
+Usamos o mesmo sistema de PARSER 
+*/
+
+url_original=window.location.href;
+var pre_argumentos = url_original.split("?");
+var argumentos=pre_argumentos[1].split("/");
+
+	var angulo=argumentos[1];
+	var laminaURL=argumentos[2];
+	var criterio=argumentos[3];
+	var sigX=argumentos[4];
+	var sigY=argumentos[5];
+	var tauXY=argumentos[6];
+var limpar=argumentos[7];
+
+// Procuramos no JSON 
+
+var laminaURL_numerico=parseInt(laminaURL)-1;
+
+var LARC03_EPSILON_T_1=1.0;
+
+$.getJSON("macro_laminas.json", function(dados) {
+        nome=dados[laminaURL_numerico].NOME;
+        SIGMA_T_1=dados[laminaURL_numerico].SIGMA_T_1;
+        SIGMA_T_2=dados[laminaURL_numerico].SIGMA_T_2;
+        SIGMA_C_1=dados[laminaURL_numerico].SIGMA_C_1;
+        SIGMA_C_2=dados[laminaURL_numerico].SIGMA_C_2;
+        TAU12=dados[laminaURL_numerico].TAU12;
+	GAMMA12=dados[laminaURL_numerico].GAMMA12;
+	EPSILON_C_1=dados[laminaURL_numerico].EPSILON_C_1;
+	EPSILON_T_1=dados[laminaURL_numerico].EPSILON_T_1;
+
+//Agosto12
+
+        LARC03_EPSILON_T_1=dados[laminaURL_numerico].EPSILON_T_1;
+
+//Para calcular o Modo 3 , TRAÇÂO na fibra:
+        E1=dados[laminaURL_numerico].E1;
+        E2=dados[laminaURL_numerico].E2;
+        G12=dados[laminaURL_numerico].G12;
+		NU12=dados[laminaURL_numerico].NU12;
+
+});
+
+alert("Resultados comparativos");
+
+/*
+Parâmetros de entrada:
+*/
+//Nov06
+
+    entrada = prompt("Por favor indique o E1_f", EPSILON_T_1);
+
+    if (entrada != null) {
+        E1_f_entrada=entrada;
+    }
+    else
+    {
+        E1_f_entrada=EPSILON_T_1;
+    }
+
+    alert("E1_f "+E1_f_entrada);  
+//Nov06
+
+    entrada = prompt("Por favor indique o NU12_f", NU12);
+    if (entrada != null) {
+        NU12_f_entrada=entrada;
+    }
+    else
+    {
+        NU12_f_entrada=NU12;
+    }
+    alert("NU12_f "+NU12_f_entrada);          
+//Nov06
+
+    entrada = prompt("Por favor indique o m_sigF", 0.0);
+    if (entrada != null) {
+        m_sigF_entrada=entrada;
+    }
+    else
+    {
+        m_sigF_entrada=0.0;
+    }
+    alert("m_sigF "+m_sigF_entrada);      
+
+//Nov06
+    entrada = prompt("Por favor indique o p_plus_TL", 1.0);
+    if (entrada != null) {
+        p_plus_TL_entrada=entrada;
+    }
+    else
+    {
+        p_plus_TL_entrada=1.0;
+    }
+    alert("p_plus_TL "+p_plus_TL_entrada); 
+//Nov06
+
+    entrada = prompt("Por favor indique o p_minus_TL", 1.0);
+    if (entrada != null) {
+        p_minus_TL_entrada=entrada;
+    }
+    else
+    {
+        p_minus_TL_entrada=1.0;
+    }
+
+    alert("p_minus_TL "+p_minus_TL_entrada); 
+
+
+//Nov06
+
+    entrada = prompt("Por favor indique o sigma_1_D", 1.0);
+    if (entrada != null) {
+        sigma_1_D_entrada=entrada;
+    }
+    else
+    {
+        sigma_1_D_entrada=1.0;
+    }
+
+    alert("sigma_1_D "+sigma_1_D_entrada); 
+
+
+//Nov06
+
+    entrada = prompt("Por favor indique o tau12_C", 1.0);
+    if (entrada != null) {
+        tau12_C_entrada=entrada;
+    }
+    else
+    {
+        tau12_C_entrada=1.0;
+    }
+
+
+    alert("tau12_C "+tau12_C_entrada); 
+
+
+//Nov06
+
+    entrada = prompt("Por favor indique o R_TT_A", 1.0);
+    if (entrada != null) {
+        R_TT_A_entrada=entrada;
+    }
+    else
+    {
+        R_TT_A_entrada=1.0;
+    }
+
+    alert("R_TT_A "+R_TT_A_entrada); 
+
+//Nov06
+
+    entrada = prompt("Por favor indique o p_minus_TT", 1.0);
+    if (entrada != null) {
+        p_minus_TT_entrada=entrada;
+    }
+    else
+    {
+        p_minus_TT_entrada=1.0;
+    }
+    alert("p_minus_TT "+p_minus_TT_entrada); 
+
+
+
+function larc03(sigma_x,sigma_y,tau_xy,theta,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12)
+{
+	theta_radianos=(Math.PI/180)*theta;
+
+	c=Math.cos(theta_radianos);
+	s=Math.sin(theta_radianos);
+	c2=c*c;
+	s2=s*s;
+	sigma_1=c2*sigma_x+s2*sigma_y+2*c*s*tau_xy;
+	sigma_2=s2*sigma_x+c2*sigma_y-2*c*s*tau_xy;
+	tau_12=-s*c*sigma_x+s*c*sigma_y+(c2-s2)*tau_xy;
+
+	// Dentre os critérios experimentaiso mais simples, apenas escolher conforme o sinal, 
+	// para determinar o caso perante o qual estamos. 
+	// Se o reforço não tiver fibra o melhor será ADVERTIR o cálculo.
+
+
+	if_larc_03_compressao_matriz_larc0301=null;
+	if_larc_03_tracao_matriz=null;
+	if_larc_03_tracao_fibra=null;
+	if_larc_03_compressao_matriz_larc03_06=null;
+
+/*
+Nov08
+*/
+
+//	Modo 1
+	if_puck_modo_1=0.0;
+
+
+	if (sigma_1 >= 0.0)
+	{
+			EPSILON_1=((sigma_1/E1)-NU12*(sigma_2/E2));
+			E1_f=E1_f_entrada+0.0;
+			NU12_f=NU12_f_entrada+0.0;
+			m_sigF=m_sigF_entrada+0.0;
+			aux4_1 = (NU12_f/E1_f)*m_sigF*sigma_2;
+			aux4 = EPSILON_1 + aux4_1;
+			if_puck_modo_1 = (1.0/EPSILON_T_1)*aux4;
+
+	}		
+
+/*
+Nov08
+*/
+
+//  Modo 2 
+	if_puck_modo_2=0.0;
+	if (sigma_1 < 0.0)
+	{
+		EPSILON_1=((sigma_1/E1)-NU12*(sigma_2/E2));
+		E1_f=E1_f_entrada+0.0;
+		m_sigF=m_sigF_entrada+0.0;
+		NU12_f=NU12_f_entrada;
+		aux5_1 = (NU12_f/E1_f)*m_sigF*sigma_2;
+		aux5_2 = EPSILON_1 + aux5_1;
+		aux5 = (1.0/EPSILON_C_1)*Math.abs(aux5_2);
+		aux6 = Math.pow(10*GAMMA12,2);
+		if_puck_modo_2 = aux5 + aux6;
+	}
+/*
+Nov08
+*/
+
+
+//Modo 3 ,
+	if_puck_modo_3=0.0;
+	if (sigma_2 >= 0.0)
+	{
+		p_plus_TL=p_plus_TL_entrada;
+		sigma_1_D=sigma_1_D_entrada;
+		aux7_1 = tau_12/TAU12;
+		aux7 = Math.pow(aux7_1, 2);
+		aux8_1 = p_plus_TL*(SIGMA_T_2/TAU12);
+		aux8_2 = Math.pow(1 - aux8_1, 2);
+		aux8_3_1 = sigma_2/SIGMA_T_2;
+		aux8_3 = Math.pow(aux8_3_1, 2);
+		aux8 = aux8_2*aux8_3;
+		raiz= Math.sqrt( aux7 + aux8 );
+		aux0_1 = tau_12/TAU12;
+		aux0=p_plus_TL*aux0_1;
+		termo_fibra=Math.abs(sigma_1/sigma_1_D);
+		if_puck_modo_3=aux0+raiz;
+	}
+
+
+//	Modo 4, 
+	if_puck_modo_4=0.0;
+	if_puck_modo_5=0.0;
+
+	if (sigma_2 < 0.0)
+	{
+		p_plus_TL=p_plus_TL_entrada+0.0;
+		sigma_1_D=sigma_1_D_entrada+1.0;
+		tau12_C=tau12_C_entrada+0.0;
+		R_TT_A=R_TT_A_entrada+0.0;
+		t = Math.abs(sigma_2/TAU12);
+		t_maior = R_TT_A/Math.abs(tau12_C);
+		if((t >= 0) && (t <= t_maior))
+		{
+			p_minus_TL=p_minus_TL_entrada+0.0;
+			sigma_1_D=sigma_1_D_entrada+0.0;
+			aux7_1 = tau_12;
+			aux7 = Math.pow(aux7_1, 2);
+			aux8_1 = p_minus_TL*SIGMA_T_2;
+			aux8_2 = Math.pow(aux8_1, 2);
+			raiz=Math.sqrt(aux7+aux8_2);
+			aux0_1=raiz+p_minus_TL;
+			aux0=aux0_1/TAU12;				
+			termo_fibra=Math.abs(sigma_1/sigma_1_D);
+			if_puck_modo_4=termo_fibra+aux0;
+
+		}
+
+
+//Modo 5, Compressão na Fibra, Depende do valor de fi
+		t_INV = Math.abs(TAU12/sigma_2);
+		t_maior_INV = Math.abs(tau12_C)/R_TT_A;
+		if((t_INV >= 0) && (t <= t_maior_INV))
+		{
+			p_minus_TT=p_minus_TT_entrada+0.0;
+			sigma_1_D=sigma_1_D_entrada+0.0;
+			aux12_1 = 2*(1 + p_minus_TT)*tau12_C;
+			aux12_2 = tau_12/aux12_1;
+			aux12 = Math.pow(aux12_2,2);
+			aux13_1 = sigma_2/SIGMA_C_2;
+			aux13 = Math.pow(aux13_1,2);
+			aux14_1 = SIGMA_C_2/(-sigma_2);
+			aux14 = aux14_1*( aux12 + aux13 );
+			termo_fibra=Math.abs(sigma_1/sigma_1_D);
+			if_puck_modo_5=termo_fibra+aux14;
+		}
+
+	}
+//	if_larc_03_compressao_matriz_larc03_06=0.0;
+
+	//entrega de resultados
+	    var IFs = new Object();
+        IFs[0] = if_puck_modo_1;
+        IFs[1] = if_puck_modo_2;
+        IFs[2] = if_puck_modo_3;
+        IFs[3] = if_puck_modo_4;
+	IFs[4] =if_puck_modo_5;
+
+	IFs[5] =0.0;
+    return IFs;
+	
+}
+
+
+
+// Informamos as saídas:
+
+$(document).ready(function(){
+
+	var funcao_if=larc03(sigX,sigY,tauXY,angulo,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12);
+
+        $("#entrada_theta").text(angulo);
+        $("#entrada_sigma_x").text(sigX);
+        $("#entrada_sigma_y").text(sigY);
+        $("#entrada_tau_xy").text(tauXY);
+	$("#lamina_url").text("Lamina de: "+nome);
+	$("#SIGMA_T_1").text(SIGMA_T_1);
+	$("#SIGMA_T_2").text(SIGMA_T_2);
+	$("#SIGMA_C_1").text(SIGMA_C_1);
+	$("#SIGMA_C_2").text(SIGMA_C_2);
+	$("#TAU12").text(TAU12);
+
+	$("#if_modo_1").text(funcao_if[0]);
+	$("#if_modo_2").text(funcao_if[1]);
+	$("#if_modo_3").text(funcao_if[2]);
+	$("#if_modo_4").text(funcao_if[3]);
+	$("#if_modo_5").text(funcao_if[4]);
+
+
+//facilitamos pular de um envelope para outro
+
+
+//melhorado
+	document.getElementById("envelope_max_tensao").setAttribute('href', "./maxima_tensao.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_max_deformacao").setAttribute('href', "./maxima_deformacao.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_tsai_hill").setAttribute('href', "./tsai_hill.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+	document.getElementById("envelope_azzi_tsai").setAttribute('href', "./azzi_tsai.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_tsai_wu").setAttribute('href', "./tsai_wu.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_hoffman").setAttribute('href', "./hoffman.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+	document.getElementById("envelope_hashin").setAttribute('href', "./hashin.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY+"/");
+
+	document.getElementById("envelope_christensen").setAttribute('href', "./christensen.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_puck").setAttribute('href', "./puck.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_larc03").setAttribute('href', "./larc03.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+
+
+    $.getJSON("macro_laminas.json", function(dados) {
+
+	primeira_coluna=parseInt(dados.length/2);    
+
+ /*
+Setembro 06: 
+Fazemos um ordenamento dos materiais conforme o IF 
+*/
+
+//coluna 2
+
+    for(var i=0; i<primeira_coluna; i++) {
+	var funcao_if=larc03(sigX,sigY,tauXY,angulo,dados[i].SIGMA_T_1,dados[i].SIGMA_T_2,dados[i].SIGMA_C_1,dados[i].SIGMA_C_2,dados[i].TAU12);
+
+        $("#coluna_2").append('<div><b>(' + dados[i].id+')  '+dados[i].NOME+'</b>'+"<br> IF (modo#01): "+funcao_if[0]+"<br> IF (modo#02): "+funcao_if[1]+"<br>IF (modo#03) :"+funcao_if[2]+"<br>IF (modo#04) :"+funcao_if[3]+"<br>IF (modo#05) :"+funcao_if[4]+"<br></div>");
+    }
+
+//coluna 3
+
+    for(var i=primeira_coluna; i<dados.length; i++) {
+	var funcao_if=larc03(sigX,sigY,tauXY,angulo,dados[i].SIGMA_T_1,dados[i].SIGMA_T_2,dados[i].SIGMA_C_1,dados[i].SIGMA_C_2,dados[i].TAU12);
+
+        $("#coluna_3").append('<div><b>(' + dados[i].id+')  '+dados[i].NOME+'</b>'+"<br> IF (modo#01): "+funcao_if[0]+"<br> IF (modo#02): "+funcao_if[1]+"<br>IF (modo#03) :"+funcao_if[2]+"<br>IF (modo#04) :"+funcao_if[3]+"<br>IF (modo#05) :"+funcao_if[4]+"<br></div>");
+
+    }
+
+//sem ordenados
+
+    });
+});
+
+
+</script>
+</head>
+
+<body>
+
+<div class="jumbotron text-center">
+  <p>Critério de Puck<br>
+
+  <p>Entrada:<br>
+
+</p> 
+
+Ângulo: <label  id="entrada_theta" ></label> (Degree) <br> 
+&sigma;<sub>x</sub>: <label  id="entrada_sigma_x" ></label> (Pa) <br>
+&sigma;<sub>y</sub>: <label  id="entrada_sigma_y" ></label> (Pa) <br>
+&tau;<sub>xy</sub>: <label  id="entrada_tau_xy" ></label> (Pa) <br>
+<label  id="lamina_url" ></label><br>
+Propriedades mecânicas desta lâmina:<br> 
+(&sigma;<sub>1</sub>)<sub>T</sub><sup>U</sup>:  <label  id="SIGMA_T_1" ></label> (Pa) <br>
+(&sigma;<sub>2</sub>)<sub>T</sub><sup>U</sup>:  <label  id="SIGMA_T_2" ></label> (Pa) <br>
+(&sigma;<sub>1</sub>)<sub>C</sub><sup>U</sup>:  <label  id="SIGMA_C_1" ></label> (Pa) <br>
+(&sigma;<sub>2</sub>)<sub>C</sub><sup>U</sup>:  <label  id="SIGMA_C_2" ></label> (Pa) <br>
+(&tau;<sub>12</sub>)<sub>U</sub>:  <label  id="TAU12" ></label> (Pa) <br>
+      <h3 style="background-color:powderblue;">IF:</h3>
+IF (modo#01) : <label  id="if_modo_1" style="background-color:powderblue;" ></label><br>
+      IF (modo#02) : <label  id="if_modo_2" style="background-color:powderblue;" ></label><br>
+      IF (modo#03) : <label  id="if_modo_3" style="background-color:powderblue;" ></label><br>
+IF (modo#04) : <label  id="if_modo_4" style="background-color:powderblue;" ></label><br>
+IF (modo#05) : <label  id="if_modo_5" style="background-color:powderblue;" ></label><br>
+</div>
+  
+<div class="container">
+  <div class="row">
+    <div class="col-sm-4" >
+<div style="background-color:powderblue;">
+
+</div>
+	<div class="jumbotron text-center">
+	  <p>
+	  Reproduzir este mesmo cálculo usando outros critérios:<br>
+	  </p>
+		<a id="envelope_max_tensao" href="">Máxima Tensão</a><br>
+
+		<a id="envelope_max_deformacao" href="" /a>Máxima Deformação</a><br>
+		<a id="envelope_tsai_hill" href="" >		Tsai Hill</a><br>
+		<a id="envelope_azzi_tsai" href="" >		Azzi Tsai</a><br>
+		<a id="envelope_tsai_wu" href="" >		Tsai-wu</a><br>
+		<a id="envelope_hoffman" href="" >		Hoffman</a><br>
+		<a id="envelope_hashin" href="" >		Hashin</a><br>
+		<a id="envelope_christensen" href="" >		Christensen</a><br>
+		<a id="envelope_puck" href="" >		Puck</a><br>
+		<a id="envelope_larc03" href="" >		Larc03</a><br>
+	</div>
+<!-Setembro 06 -->
+<h3></h3><br>
+<p id="if_ordenados"></p>
+</div>
+    <div class="col-sm-4" id="coluna_2">
+      <h3>IF com outros materiais</h3>
+    </div>
+    <div class="col-sm-4" id="coluna_3">
+      <h3>IF com outros materiais</h3>        
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
+

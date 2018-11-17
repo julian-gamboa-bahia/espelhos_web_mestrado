@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Critério de Christensen</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+
+<script>
+/*
+Agosto 25:
+Usamos o mesmo sistema de PARSER 
+
+*/
+
+url_original=window.location.href;
+var pre_argumentos = url_original.split("?");
+var argumentos=pre_argumentos[1].split("/");
+
+	var angulo=argumentos[1];
+	var laminaURL=argumentos[2];
+	var criterio=argumentos[3];
+	var sigX=argumentos[4];
+	var sigY=argumentos[5];
+	var tauXY=argumentos[6];
+var limpar=argumentos[7];
+
+// Procuramos no JSON 
+
+var laminaURL_numerico=parseInt(laminaURL)-1;
+
+
+
+$.getJSON("macro_laminas.json", function(dados) {
+        nome=dados[laminaURL_numerico].NOME;
+        SIGMA_T_1=dados[laminaURL_numerico].SIGMA_T_1;
+        SIGMA_T_2=dados[laminaURL_numerico].SIGMA_T_2;
+        SIGMA_C_1=dados[laminaURL_numerico].SIGMA_C_1;
+        SIGMA_C_2=dados[laminaURL_numerico].SIGMA_C_2;
+        TAU12=dados[laminaURL_numerico].TAU12;
+});
+
+alert("Resultados comparativos");
+
+// O critério códificado em forma simples:
+
+function christensen(sigma_x,sigma_y,tau_xy,theta,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12){
+	
+	theta_radianos=(Math.PI/180)*theta;
+
+	c=Math.cos(theta_radianos);
+	s=Math.sin(theta_radianos);
+	c2=c*c;
+	s2=s*s;
+	sigma_1=c2*sigma_x+s2*sigma_y+2*c*s*tau_xy;
+	sigma_2=s2*sigma_x+c2*sigma_y-2*c*s*tau_xy;
+	tau_12=-s*c*sigma_x+s*c*sigma_y+(c2-s2)*tau_xy;
+
+// Dentre os critérios experimentaiso mais simples, apenas escolher conforme o sinal, 
+// para determinar o caso perante o qual estamos. 
+// Se o reforço não tiver fibra o melhor será ADVERTIR o cálculo.
+
+
+//  Modo 1 , falha na fibra:
+
+	var termo_inversos=(1/SIGMA_T_1)-(1/SIGMA_C_1);
+	
+	var termo_inversos_produtos=(1/(SIGMA_T_1*SIGMA_C_1));
+
+	if_falha_fibra=termo_inversos*sigma_1+termo_inversos_produtos*Math.pow(sigma_1,2);
+
+//  Modo 2 , falha na Matriz:
+
+	var termo_inversos=(1/SIGMA_T_2)-(1/SIGMA_C_2);
+	
+	var termo_inversos_produtos=(1/(SIGMA_T_2*SIGMA_C_2));
+
+	var normalizado_tau_12=tau_12/TAU12;
+
+	if_falha_matriz=termo_inversos*sigma_2+termo_inversos_produtos*Math.pow(sigma_2,2)+normalizado_tau_12*normalizado_tau_12;
+
+//        alert("domingo  "+normalizado_tau_12*normalizado_tau_12);
+
+
+    var IFs = new Object();
+        IFs[0] = if_falha_fibra;
+        IFs[1] = if_falha_matriz;
+    return IFs;
+}
+
+// Informamos as saídas:
+
+$(document).ready(function(){
+
+	var funcao_if=christensen(sigX,sigY,tauXY,angulo,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12);
+
+        $("#entrada_theta").text(angulo);
+        $("#entrada_sigma_x").text(sigX);
+        $("#entrada_sigma_y").text(sigY);
+        $("#entrada_tau_xy").text(tauXY);
+	$("#lamina_url").text("Lamina de: "+nome);
+	$("#SIGMA_T_1").text(SIGMA_T_1);
+	$("#SIGMA_T_2").text(SIGMA_T_2);
+	$("#SIGMA_C_1").text(SIGMA_C_1);
+	$("#SIGMA_C_2").text(SIGMA_C_2);
+	$("#TAU12").text(TAU12);
+	$("#funcao_if_falha_na_fibra").text(funcao_if[0]);
+	$("#funcao_if_falha_na_matriz").text(funcao_if[1]);
+
+//facilitamos pular de um envelope para outro
+
+
+//melhorado
+	document.getElementById("envelope_max_tensao").setAttribute('href', "./maxima_tensao.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_max_deformacao").setAttribute('href', "./maxima_deformacao.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_tsai_hill").setAttribute('href', "./tsai_hill.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+	document.getElementById("envelope_azzi_tsai").setAttribute('href', "./azzi_tsai.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_tsai_wu").setAttribute('href', "./tsai_wu.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_hoffman").setAttribute('href', "./hoffman.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+	document.getElementById("envelope_hashin").setAttribute('href', "./hashin.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY+"/");
+
+	document.getElementById("envelope_christensen").setAttribute('href', "./christensen.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_puck").setAttribute('href', "./puck.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_larc03").setAttribute('href', "./larc03.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+
+
+    $.getJSON("macro_laminas.json", function(dados) {
+
+	primeira_coluna=parseInt(dados.length/2);    
+
+ /*
+Setembro 06: 
+Fazemos um ordenamento dos materiais conforme o IF 
+*/
+
+//coluna 2
+
+    for(var i=0; i<primeira_coluna; i++) {
+	var funcao_if=christensen(sigX,sigY,tauXY,angulo,dados[i].SIGMA_T_1,dados[i].SIGMA_T_2,dados[i].SIGMA_C_1,dados[i].SIGMA_C_2,dados[i].TAU12);
+
+        $("#coluna_2").append('<div><b>(' + dados[i].id+')  '+dados[i].NOME+'</b>'+"<br> IF (falha na fibra): "+funcao_if[0]+"<br> IF (falha na matriz): "+funcao_if[1]+"</div>");
+    }
+
+//coluna 3
+
+    for(var i=primeira_coluna; i<dados.length; i++) {
+	var funcao_if=christensen(sigX,sigY,tauXY,angulo,dados[i].SIGMA_T_1,dados[i].SIGMA_T_2,dados[i].SIGMA_C_1,dados[i].SIGMA_C_2,dados[i].TAU12);
+
+        $("#coluna_3").append('<div><b>(' + dados[i].id+')  '+dados[i].NOME+'</b>'+"<br> IF (falha na fibra): "+funcao_if[0]+"<br> IF (falha na matriz): "+funcao_if[1]+"</div>");
+    }
+
+//sem ordenados
+
+    });
+});
+
+
+</script>
+</head>
+
+<body>
+
+<div class="jumbotron text-center">
+  <p>Critério de Christensen<br>
+
+  <p>Entrada:<br>
+
+</p> 
+
+Ângulo: <label  id="entrada_theta" ></label> (Degree) <br> 
+&sigma;<sub>x</sub>: <label  id="entrada_sigma_x" ></label> (Pa) <br>
+&sigma;<sub>y</sub>: <label  id="entrada_sigma_y" ></label> (Pa) <br>
+&tau;<sub>xy</sub>: <label  id="entrada_tau_xy" ></label> (Pa) <br>
+<label  id="lamina_url" ></label><br>
+Propriedades mecânicas desta lâmina:<br> 
+(&sigma;<sub>1</sub>)<sub>T</sub><sup>U</sup>:  <label  id="SIGMA_T_1" ></label> (Pa) <br>
+(&sigma;<sub>2</sub>)<sub>T</sub><sup>U</sup>:  <label  id="SIGMA_T_2" ></label> (Pa) <br>
+(&sigma;<sub>1</sub>)<sub>C</sub><sup>U</sup>:  <label  id="SIGMA_C_1" ></label> (Pa) <br>
+(&sigma;<sub>2</sub>)<sub>C</sub><sup>U</sup>:  <label  id="SIGMA_C_2" ></label> (Pa) <br>
+(&tau;<sub>12</sub>)<sub>U</sub>:  <label  id="TAU12" ></label> (Pa) <br>
+      <h3 style="background-color:powderblue;">IF:</h3>
+      IF (falha na fibra) : <label  id="funcao_if_falha_na_fibra" style="background-color:powderblue;" ></label><br>
+      IF (falha na matriz) : <label  id="funcao_if_falha_na_matriz" style="background-color:powderblue;" ></label><br>
+</div>
+  
+<div class="container">
+  <div class="row">
+    <div class="col-sm-4" >
+<div style="background-color:powderblue;">
+
+</div>
+	<div class="jumbotron text-center">
+	  <p>
+	  Reproduzir este mesmo cálculo usando outros critérios:<br>
+	  </p>
+		<a id="envelope_max_tensao" href="">Máxima Tensão</a><br>
+
+		<a id="envelope_max_deformacao" href="" /a>Máxima Deformação</a><br>
+		<a id="envelope_tsai_hill" href="" >		Tsai Hill</a><br>
+		<a id="envelope_azzi_tsai" href="" >		Azzi Tsai</a><br>
+		<a id="envelope_tsai_wu" href="" >		Tsai-wu</a><br>
+		<a id="envelope_hoffman" href="" >		Hoffman</a><br>
+		<a id="envelope_hashin" href="" >		Hashin</a><br>
+		<a id="envelope_christensen" href="" >		Christensen</a><br>
+		<a id="envelope_puck" href="" >		Puck</a><br>
+		<a id="envelope_larc03" href="" >		Larc03</a><br>
+	</div>
+<!-Setembro 06 -->
+<h3></h3><br>
+<p id="if_ordenados"></p>
+</div>
+    <div class="col-sm-4" id="coluna_2">
+      <h3>IF com outros materiais</h3>
+    </div>
+    <div class="col-sm-4" id="coluna_3">
+      <h3>IF com outros materiais</h3>        
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
+

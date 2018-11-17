@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>Envelope do critério de Christensen</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="2_files/bootstrap.css">
+  <script src="2_files/jquery.js"></script>
+  <script src="2_files/bootstrap.js"></script>
+
+<!-Biblioteca responsiva para ser usada na parte gráfica->
+
+	<link rel="stylesheet"  href="dist/chartist.min.css">
+	<script src="dist/chartist.min.js"></script>
+
+
+<!--Colocamos cores específicos para cada traço-->
+<style type="text/css">
+	.ct-series-a .ct-bar, .ct-series-a .ct-line, .ct-series-a .ct-point, .ct-series-a .ct-slice-donut {
+	    stroke: #0CC162;
+	}
+	.ct-series-b .ct-bar, .ct-series-b .ct-line, .ct-series-b .ct-point, .ct-series-b .ct-slice-donut {
+	    stroke: #0CC162;
+	}
+	.ct-chart {
+	    margin: auto;
+	}
+</style>
+
+<script>
+
+/*
+Março 5:
+Usamos o mesmo sistema de PARSER 
+
+http://127.0.0.1/conversao_java_javascript/maxima_deformacao.htm?/3.1/1/00/247935000/02/0
+
+*/
+
+url_original=window.location.href;
+var pre_argumentos = url_original.split("?");
+var argumentos=pre_argumentos[1].split("/");
+
+	var angulo=argumentos[1];
+	var laminaURL=argumentos[2];
+	var criterio=argumentos[3];
+	var sigX=argumentos[4];
+	var sigY=argumentos[5];
+	var tauXY=argumentos[6];
+var limpar=argumentos[7];
+
+// Procuramos no JSON 
+
+var laminaURL_numerico=parseInt(laminaURL)-1;
+
+
+
+$.getJSON("macro_laminas.json", function(dados) {
+        nome=dados[laminaURL_numerico].NOME;
+
+//Coletamos as informações de resistsencias em forma de tensões extremas
+        SIGMA_T_1=dados[laminaURL_numerico].SIGMA_T_1;
+        SIGMA_T_2=dados[laminaURL_numerico].SIGMA_T_2;
+        SIGMA_C_1=dados[laminaURL_numerico].SIGMA_C_1;
+        SIGMA_C_2=dados[laminaURL_numerico].SIGMA_C_2;
+        TAU12=dados[laminaURL_numerico].TAU12;
+//E na forma de deformações extremas
+        EPSILON_T_1=dados[laminaURL_numerico].EPSILON_T_1;
+        EPSILON_T_2=dados[laminaURL_numerico].EPSILON_T_2;
+        EPSILON_C_1=-dados[laminaURL_numerico].EPSILON_C_1;
+        EPSILON_C_2=-dados[laminaURL_numerico].EPSILON_C_2;
+        GAMMA12=dados[laminaURL_numerico].GAMMA12;
+
+//Para obter a matriz Q é preciso obter estes elemeentos
+        E1=dados[laminaURL_numerico].E1;
+        E2=dados[laminaURL_numerico].E2;
+        G12=dados[laminaURL_numerico].G12;
+	NU12=dados[laminaURL_numerico].NU12;
+	
+});
+
+alert("Envelope de Falha do critério de Christensen");
+
+// O critério códificado em forma simples:
+
+
+
+
+
+/*
+    // inversa da cotangente
+*/
+
+function  Inverse_cotan(x){
+        if (x<0)
+        {
+            return -(Math.PI/2)-Math.atan(x);
+        }
+        else{
+            return (Math.PI/2)-Math.atan(x);
+        }
+}
+
+
+/*
+Equivale a função MAIN
+
+*/
+
+var possiveis_pontos_x=["0.0","0.0","0.0"];
+var possiveis_pontos_y=["0.0","0.0","0.0"];
+
+var pares_pontos_x=[];
+var pares_pontos_y=[];
+
+
+
+
+/*
+Vetorizamos para criar duas curvas a partir da cônica
+
+*/
+
+	var serie_1_x=[];
+	var serie_1_y=[];
+
+/*
+Función auxiliar para detectar todas las ocureencias
+
+*/
+function getAllIndexes(arr, val) {
+    var indexes = [], i = -1;
+    while ((i = arr.indexOf(val, i+1)) != -1){
+        indexes.push(i);
+    }
+    return indexes;
+}
+
+
+//Outubro29
+function vetorizar_duas_series()
+{
+
+         maiorX=pares_pontos_x[0];
+         maiorY=pares_pontos_y[0];
+
+         menorX=pares_pontos_x[0];
+         menorY=pares_pontos_y[0];
+
+
+//Posições
+
+        var posicao_aiorX=0;
+        var posicao_aiorY=0;
+
+        var posicao_enorX=0;
+        var posicao_enorY=0;
+
+//cálculamos valores extremos verdadeiramente
+
+        for(i=0;i<pares_pontos_x.length;i++)
+        {
+
+
+            if(maiorX<pares_pontos_x[i])
+            {
+                maiorX=pares_pontos_x[i];
+                posicao_aiorX=i;
+            }
+
+            if(maiorY<pares_pontos_y[i])
+            {
+                maiorY=pares_pontos_y[i];
+                posicao_aiorY=i;
+            }
+
+            if(menorX>pares_pontos_x[i])
+            {
+                menorX=pares_pontos_x[i];
+                posicao_enorX=i;
+            }
+
+            if(menorY>pares_pontos_y[i])
+            {
+                menorY=pares_pontos_y[i];
+                posicao_enorY=i;
+            }
+        }
+
+        var i_vetor=posicao_enorX;
+        var i_vetor_seguinte=i_vetor+1;
+
+
+
+        do
+        {
+
+            serie_1_x.push(pares_pontos_x[i_vetor]);
+            serie_1_y.push(pares_pontos_y[i_vetor]);
+
+            pares_pontos_x[i_vetor]="null";
+            pares_pontos_y[i_vetor]="null";
+
+            i_vetor=i_vetor+1;
+            i_vetor_seguinte=1+i_vetor;
+
+            if(i_vetor>=pares_pontos_x.length)
+            {
+                i_vetor=i_vetor-pares_pontos_x.length;
+
+            }
+
+            if(i_vetor_seguinte>=pares_pontos_x.length)
+            {
+                i_vetor_seguinte=i_vetor_seguinte-pares_pontos_x.length;
+
+            }
+        }  while (pares_pontos_x[i_vetor]<=pares_pontos_x[i_vetor_seguinte]);
+
+        //Mesmo saindo do While ele coloco o ultimo
+
+        serie_1_x.push(pares_pontos_x[i_vetor]);
+        serie_1_y.push(pares_pontos_y[i_vetor]);
+
+        pares_pontos_x[i_vetor]="null";
+        pares_pontos_y[i_vetor]="null";
+/*
+
+        fazer_segunda_serie(pares_pontos);
+*/
+}
+
+
+/*
+Registrando no servidor
+
+*/
+var dados_GNU="";
+
+function envio_gnu()
+{
+
+    var d = new Date();
+    var n = d.getTime();
+
+resistencias=[SIGMA_T_1+0,SIGMA_C_1+0,SIGMA_T_2+0,SIGMA_C_2+0,TAU12];
+
+resistencias.sort();
+
+MAX=resistencias[4];
+
+//    var theUrl="http://ven2020.com.br/agosto2017/arquitetando/gnu_registrar.php?identificador="+angulo+"_TSAI_HILL_WEB_"+n+"&dados="+dados_GNU;
+
+	baseURL="http://192.168.250.1/setembro/graficas_janeiro/diagramacao/gnu_registrar.php";
+
+coeficientes_quadraticos="SIGMA_T_1="+SIGMA_T_1+"%5Cn"
+coeficientes_quadraticos=coeficientes_quadraticos+"SIGMA_T_2="+SIGMA_T_2+"%5Cn"
+coeficientes_quadraticos=coeficientes_quadraticos+"SIGMA_C_1="+SIGMA_C_1+"%5Cn"
+coeficientes_quadraticos=coeficientes_quadraticos+"SIGMA_C_2="+SIGMA_C_2+"%5Cn"
+coeficientes_quadraticos=coeficientes_quadraticos+"TAU12="+TAU12+"%5Cn"
+
+coeficientes_quadraticos=coeficientes_quadraticos+"angulo="+angulo+"%5Cn"
+
+coeficientes_quadraticos=coeficientes_quadraticos+"MAX,a_f,b_f,c_f,d_f,f_f,g_f="+MAX+","+a_f+","+b_f+","+c_f+","+d_f+","+f_f+","+g_f;
+
+	for(i=0;i<pares_pontos_x.length;i++)
+	{
+		dados_GNU=dados_GNU+pares_pontos_x[i]+"  "+pares_pontos_y[i]+"%5Cn";
+	}
+
+    var theUrl=baseURL+"?identificador="+coeficientes_quadraticos+"&dados="+dados_GNU;
+
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function() { 
+        if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+            callback(xmlHttp.responseText);
+    }
+    xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+    xmlHttp.send(null);
+}
+
+// Informamos as saídas na tela
+
+//Enviamos as informações ao servidor
+
+$(document).ready(function(){
+
+        $("#entrada_theta").text(angulo);
+        $("#entrada_sigma_x").text(sigX);
+        $("#entrada_sigma_y").text(sigY);
+        $("#entrada_tau_xy").text(tauXY);
+	$("#lamina_url").text("Lamina de: "+nome);
+	$("#SIGMA_T_1").text(SIGMA_T_1);
+	$("#SIGMA_T_2").text(SIGMA_T_2);
+	$("#SIGMA_C_1").text(SIGMA_C_1);
+	$("#SIGMA_C_2").text(SIGMA_C_2);
+	$("#TAU12").text(TAU12);
+
+//Colocamos as relações entre resistências
+
+	$("#relacaoSIGMA_T_1_SIGMA_T_2").text(SIGMA_T_1/SIGMA_T_2);
+//compressão
+	$("#relacaoSIGMA_C_1_SIGMA_C_2").text(SIGMA_C_1/SIGMA_C_2);
+
+//Calculo do envelope, no caso que o ângulo seja diferente de (Pi/2)*n
+
+	if(angulo % 90 == 0)
+	{
+		rotacao_pi_2(angulo);
+	}
+	else
+	{
+		calculo_conica(angulo,tauXY);
+	}
+
+
+
+//preparamos a informação que será enviada ao servidor
+
+	for(i=0;i<pares_pontos_x.length;i++)
+	{
+		//dados_GNU=dados_GNU+pares_pontos_x[i]+"  "+pares_pontos_y[i]+"%5Cn"; //%5Cn
+		dados_GNU=dados_GNU+serie_1_x[i]+"  "+serie_1_y[i]+"%5Cn"; //%5Cn
+	}
+
+
+
+//facilitamos pular de um envelope para outro
+
+
+	document.getElementById("envelope_max_tensao").setAttribute('href', "./maxima_tensao.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_max_deformacao").setAttribute('href', "./maxima_deformacao.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_tsai_hill").setAttribute('href', "./tsai_hill.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+
+	document.getElementById("envelope_azzi_tsai").setAttribute('href', "./azzi_tsai.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_tsai_wu").setAttribute('href', "./tsai_wu.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_hoffman").setAttribute('href', "./hoffman.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+
+	document.getElementById("envelope_hashin").setAttribute('href', "./hashin.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_christensen").setAttribute('href', "./christensen.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_puck").setAttribute('href', "./puck.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_larc03").setAttribute('href', "./larc03.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+
+
+
+///////////
+});
+
+//Caso o material seja muito anisotrópico 
+
+function coletar_numero_pontos(numero_pontos) {
+    var entrada = prompt("Por favor indique o número de pontos da barredura", numero_pontos);
+    if (entrada != null) {
+	return entrada;
+    }
+	else
+	{
+	 return numero_pontos;
+	}
+////		tolerancia=0.15;
+}
+
+//Para melhorar o sistema
+
+function coletar_tolerancia(tolerancia) {
+    var entrada = prompt("Por favor indique a tolerancia", tolerancia);
+    if (entrada != null) {
+	return entrada;
+    }
+	else
+	{
+	 return numero_pontos;
+	}
+////		tolerancia=0.15;
+}
+
+
+
+</script>
+
+<script src="./christensen/usar_GraphView.js">
+</script>
+
+<script src="./christensen/calculo_conica.js">
+
+</script>
+
+<script src="./christensen/filtro_calculo_conica_NEGNEG.js">
+</script>
+<script src="./christensen/filtro_calculo_conica_POSPOS.js">
+</script>
+<script src="./christensen/filtro_calculo_conica_POSNEG.js">
+</script>
+<script src="./christensen/filtro_calculo_conica_NEGPOS.js">
+</script>
+
+<script src="./christensen/calcular_coeficientesTRACA_OFIBRA.js">
+</script>
+
+<script src="./christensen/calcular_coeficientesCOMPRESSAO_FIBRA.js">
+</script>
+
+<script src="./christensen/calcular_coeficientesCOMPRESSAO_MATRIZ.js">
+</script>
+
+<script src="./christensen/calcular_coeficientes_MATRIZ_TRACAO.js">
+</script>
+
+<script src="./christensen/criterio_puro.js">
+</script>
+
+<script src="./christensen/filtro_calculo_conica_COMPRESSAO_MATRIZ.js">
+</script>
+
+<script src="./christensen/filtro_calculo_conica_TRACA_OFIBRA.js">
+</script>
+
+<script src="./christensen/filtro_calculo_conica_TRACAO_MATRIZ.js">
+</script>
+
+<script src="./christensen/filtro_calculo_conica_COMPRESSAO_FIBRA.js">
+</script>
+
+<script src="./christensen/">
+</script>
+
+<script src="./christensen/">
+</script>
+
+</head>
+
+<body>
+
+<div class="container">
+  <div class="row">
+    <div class="col-sm-4">
+	<div class="jumbotron text-center">
+	  <p>Critério de Christensen:<br>
+	  </p><p>Entrada:<br></p> 
+		Ângulo: <label id="entrada_theta">11</label> (Degree) <br> 
+		σ<sub>x</sub>: <label id="entrada_sigma_x">247935000</label> (Pa) <br>
+		σ<sub>y</sub>: <label id="entrada_sigma_y">02</label> (Pa) <br>
+		τ<sub>xy</sub>: <label id="entrada_tau_xy">03</label> (Pa) <br>
+		<label id="lamina_url">Lamina de: IM7_5250-4</label><br>
+		Propriedades mecânicas desta lâmina:<br> 
+		(σ<sub>1</sub>)<sub>T</sub><sup>U</sup>:  <label id="SIGMA_T_1"></label> (Pa) <br>
+		(σ<sub>2</sub>)<sub>T</sub><sup>U</sup>:  <label id="SIGMA_T_2"></label> (Pa) <br>
+		(σ<sub>1</sub>)<sub>C</sub><sup>U</sup>:  <label id="SIGMA_C_1"></label> (Pa) <br>
+		(σ<sub>2</sub>)<sub>C</sub><sup>U</sup>:  <label id="SIGMA_C_2"></label> (Pa) <br>
+		(τ<sub>12</sub>)<sub>U</sub>:  <label id="TAU12"></label> (Pa) <br>
+		Relação entre resistências:  
+<br>
+<br>
+(σ<sub>1</sub>)<sub>T</sub><sup>U</sup>/(σ<sub>2</sub>)<sub>T</sub><sup>U</sup>= <label id="relacaoSIGMA_T_1_SIGMA_T_2"></label>  
+<br>
+(σ<sub>1</sub>)<sub>C</sub><sup>U</sup>/(σ<sub>2</sub>)<sub>C</sub><sup>U</sup>= <label id="relacaoSIGMA_C_1_SIGMA_C_2"></label>  
+	</div>
+
+	<div class="jumbotron text-center">
+	  <p>
+	  Pontos deste envelope, para testes<br>
+	(σ<sub>x</sub>,σ<sub>y</sub>)
+	  </p>
+		<a id="vertice_0" href="" target="_blank"/a></a><br>
+		<a id="vertice_1" href="" target="_blank"/a></a><br>
+		<a id="vertice_2" href=""  target="_blank"/a></a><br>
+		<a id="vertice_3" href=""  target="_blank"/a></a><br>
+		<a id="vertice_4" href=""  target="_blank"/a></a><br>
+		<a id="vertice_5" href=""  target="_blank"/a></a><br>
+		<a id="vertice_6" href=""  target="_blank"/a></a><br>
+		<a id="vertice_7" href=""  target="_blank"/a></a><br>
+
+	</div>
+
+
+
+	<div class="jumbotron text-center">
+	  <p>
+	  Reproduzir este mesmo envelope usando outros critérios:<br>
+	  </p>
+		<a id="envelope_max_tensao" href="">Máxima Tensão</a><br>
+
+		<a id="envelope_max_deformacao" href="" /a>Máxima Deformação</a><br>
+		<a id="envelope_tsai_hill" href="" >		Tsai Hill</a><br>
+		<a id="envelope_azzi_tsai" href="" >		Azzi Tsai</a><br>
+		<a id="envelope_tsai_wu" href="" >		Tsai-wu</a><br>
+		<a id="envelope_hoffman" href="" >		Hoffman</a><br>
+		<a id="envelope_hashin" href="" >		Hashin</a><br>
+		<a id="envelope_christensen" href="" >		Christessen</a><br>
+		<a id="envelope_puck" href="" >		Puck</a><br>
+		<a id="envelope_larc03" href="" >		Larc03</a><br>
+	</div>
+
+    </div>
+    <div class="col-sm-8" align="center">
+      <h3>Representação gráfica deste tipo de envelope</h3>
+      <h4>Plano (σ<sub>x</sub>,σ<sub>y</sub>)</h4><br>
+	<div class="ct-chart ct-golden-section" id="chart1"></div>
+    </div>
+  </div>
+</div>
+
+</body></html>

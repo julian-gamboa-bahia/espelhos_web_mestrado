@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>Envelope do critério de Máxima Deformação</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="2_files/bootstrap.css">
+  <script src="2_files/jquery.js"></script>
+  <script src="2_files/bootstrap.js"></script>
+
+<!-Biblioteca responsiva para ser usada na parte gráfica->
+
+	<link rel="stylesheet"  href="dist/chartist.min.css">
+	<script src="dist/chartist.min.js"></script>
+
+
+<!--Colocamos cores específicos para cada traço-->
+<style type="text/css">
+	.ct-series-a .ct-bar, .ct-series-a .ct-line, .ct-series-a .ct-point, .ct-series-a .ct-slice-donut {
+	    stroke: #0CC162;
+	}
+	.ct-series-b .ct-bar, .ct-series-b .ct-line, .ct-series-b .ct-point, .ct-series-b .ct-slice-donut {
+	    stroke: #0CC162;
+	}
+	.ct-chart {
+	    margin: auto;
+	}
+</style>
+
+<script>
+
+/*
+Março 5:
+Usamos o mesmo sistema de PARSER 
+
+http://127.0.0.1/conversao_java_javascript/maxima_deformacao.htm?/3.1/1/00/247935000/02/0
+
+*/
+
+url_original=window.location.href;
+var pre_argumentos = url_original.split("?");
+var argumentos=pre_argumentos[1].split("/");
+
+	var angulo=argumentos[1];
+	var laminaURL=argumentos[2];
+	var criterio=argumentos[3];
+	var sigX=argumentos[4];
+	var sigY=argumentos[5];
+	var gammaXY=argumentos[6];
+var limpar=argumentos[7];
+
+// Procuramos no JSON 
+
+var laminaURL_numerico=parseInt(laminaURL)-1;
+
+
+
+$.getJSON("macro_laminas.json", function(dados) {
+        nome=dados[laminaURL_numerico].NOME;
+
+//Coletamos as informações de resistsencias em forma de tensões extremas
+        SIGMA_T_1=dados[laminaURL_numerico].SIGMA_T_1;
+        SIGMA_T_2=dados[laminaURL_numerico].SIGMA_T_2;
+        SIGMA_C_1=dados[laminaURL_numerico].SIGMA_C_1;
+        SIGMA_C_2=dados[laminaURL_numerico].SIGMA_C_2;
+        TAU12=dados[laminaURL_numerico].TAU12;
+//E na forma de deformações extremas
+        EPSILON_T_1=dados[laminaURL_numerico].EPSILON_T_1;
+        EPSILON_T_2=dados[laminaURL_numerico].EPSILON_T_2;
+        EPSILON_C_1=-dados[laminaURL_numerico].EPSILON_C_1;
+        EPSILON_C_2=-dados[laminaURL_numerico].EPSILON_C_2;
+        GAMMA12=dados[laminaURL_numerico].GAMMA12;
+
+//Para obter a matriz Q é preciso obter estes elemeentos
+        E1=dados[laminaURL_numerico].E1;
+        E2=dados[laminaURL_numerico].E2;
+        G12=dados[laminaURL_numerico].G12;
+	NU12=dados[laminaURL_numerico].NU12;
+	
+});
+
+alert("Envelope de Falha do critério de máxima deformação");
+
+
+/*
+
+*/
+
+function  funcao_inversa_RETURN(a, b, c, d) {
+
+        if ((a * d) != (b * c)) {
+
+            var determinante = (a * d) - (b * c);
+            var inverse_a, inverse_b, inverse_c, inverse_d;
+            var inverse_a = d / determinante;
+            var inverse_b = -b / determinante;
+            var inverse_c = -c / determinante;
+            var inverse_d = a / determinante;
+
+//Descartado problema com INVERTIDA   lert("Inverse Matrix\n"+inverse_a+"  "+inverse_b+" \n"+inverse_c+"  "+inverse_d);
+ 
+	var inversa = new Object();
+	inversa[0] = inverse_a;
+	inversa[1] = inverse_b;
+	inversa[2] = inverse_c;
+	inversa[3] = inverse_d;
+	return inversa;
+
+        } else {
+//            return array_list;
+        }
+}
+
+
+/*
+Uma chama controlado, pode poupar tempo de cálculo
+
+Aqui é preciso calcular apenas 4 pontos, usando as ecuações 
+4.1
+4.2
+4.3
+4.4
+
+No começo das funções vamos colocar a variavel global
+
+*/
+
+var possiveis_pontos_x = [];
+var possiveis_pontos_y = [];
+var possiveis_pontos_xy= [];
+
+//Este array permite colocar aqueles cujo IF seja menos ou igual à 1, ou seja aquela que sea um vertice do envelope
+
+var TRUE_pontos_x=[];
+var TRUE_pontos_y=[];
+var TRUE_pontos_xy=[];
+
+//4.1
+
+function eq4_1(alfa, s, c, tau_xy, matriz_invertida)
+{
+        //Para eq. 4.1:
+	var vetor_1 = EPSILON_C_1 - alfa * s * c * tau_xy;
+        var vetor_2 = EPSILON_C_2 -0.0+ alfa * s * c * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+//Desacartado problema na formulação da equação lert(alfa+"  "+s+"  "+c+"  "+tau_xy+"  "+matriz_invertida);
+
+	possiveis_pontos_x.push(x);
+	possiveis_pontos_y.push(y);
+}
+
+//4.2
+
+function eq4_2(alfa, s, c, tau_xy, matriz_invertida)
+{
+
+        var vetor_1 = EPSILON_T_1 - alfa * s * c * tau_xy;
+        var vetor_2 = EPSILON_T_2  -0.0+ alfa * s * c * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a)  -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c)  -0.0+ vetor_2 * inverse_d;
+
+	possiveis_pontos_x.push(x);
+	possiveis_pontos_y.push(y);
+
+}
+
+//4.3
+
+function eq4_3(alfa, s, c, tau_xy, matriz_invertida)
+{
+
+        var vetor_1 = EPSILON_T_1 - alfa * s * c * tau_xy;
+        var vetor_2 = EPSILON_C_2 -0.0+ alfa * s * c * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+	possiveis_pontos_x.push(x);
+	possiveis_pontos_y.push(y);
+
+}
+
+//4.4
+
+function eq4_4(alfa, s, c, tau_xy, matriz_invertida)
+{
+
+        var vetor_1 = EPSILON_C_1 - alfa * s * c * tau_xy;
+        var vetor_2 = EPSILON_T_2 -0.0+ alfa * s * c * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+	possiveis_pontos_x.push(x);
+	possiveis_pontos_y.push(y);
+
+}
+
+//4.5
+
+function eq4_5(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+        //Para eq. 4.5:
+        var vetor_1 = EPSILON_C_1 - alfa * s * c * tau_xy;
+        var vetor_2 = -GAMMA12 - (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+
+//4.6
+function eq4_6(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+
+        //Para eq. 4.6:
+        var vetor_1 = EPSILON_T_1 - alfa * s * c * tau_xy;
+        var vetor_2 = GAMMA12 - (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+
+//4.7
+function eq4_7(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+        //Para eq. 4.7:
+        var vetor_1 = EPSILON_T_1 - alfa * s * c * tau_xy;
+        var vetor_2 = -GAMMA12 + (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+//4.8
+function eq4_8(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+        //Para eq. 4.8
+        var vetor_1 = EPSILON_C_1 - alfa * s * c * tau_xy;
+        var vetor_2 = GAMMA12 -0.0+ (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+//4.9
+function eq4_9(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+        //Para eq. 4.9
+        var vetor_1 = EPSILON_C_2 - alfa * s * c * tau_xy;
+        var vetor_2 = -GAMMA12 - (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+//4.10
+function eq4_10(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+        //Para eq. 4.10
+        var vetor_1 = EPSILON_T_2 - alfa * s * c * tau_xy;
+        var vetor_2 = GAMMA12 - (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+//4.11
+function eq4_11(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+        //Para eq. 4.11
+        var vetor_1 = EPSILON_T_2 - alfa * s * c * tau_xy;
+        var vetor_2 = -GAMMA12 - (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+//4.12
+function eq4_12(alfa, s, c, tau_xy, matriz_invertida)
+{
+        var c2 = c * c;
+        var s2 = s * s;
+        //Para eq. 4.12
+        var vetor_1 = EPSILON_C_2 - alfa * s * c * tau_xy;
+        var vetor_2 = GAMMA12 - (c2 - s2) * tau_xy;
+
+        var inverse_a = matriz_invertida[0];
+        var inverse_b = matriz_invertida[1];
+        var inverse_c = matriz_invertida[2];
+        var inverse_d = matriz_invertida[3];
+
+        var x = vetor_1 * (inverse_a) -0.0+ vetor_2 * inverse_b;
+        var y = vetor_1 * (inverse_c) -0.0+ vetor_2 * inverse_d;
+
+        possiveis_pontos_x.push(x);
+        possiveis_pontos_y.push(y);
+}
+/*
+Ordenar os elementos 
+para que possam ser representados
+
+*/
+
+var dados_GNU="";
+
+function ordenar_quatro_pontos()
+{
+        var separacao_tecnica=Math.abs(possiveis_pontos_x[0])*1.0e-3; //pegamos o primeiro elemento
+
+        //primeiramente evitamos que tenha um valor de X com multiplicidade
+
+        for ( i = 0; i < possiveis_pontos_x.length; i++) {
+            for ( j = i -0+1; j < possiveis_pontos_x.length; j++) {
+                var diff = possiveis_pontos_x[i] - possiveis_pontos_x[j];
+                if (diff == 0.0) {
+                    possiveis_pontos_x[j]=possiveis_pontos_x[i] -0.0+ separacao_tecnica;
+                }
+            }
+        }
+
+//Fazemos ordenamento por burbulha
+
+        var ORDEM_ASCII="true";
+
+        var minimo=possiveis_pontos_x[0];
+
+        for(i = 0; i < possiveis_pontos_x.length; i++)
+        {
+            if(possiveis_pontos_x[i]<minimo)
+            {
+                ORDEM_ASCII="false";
+            }
+            minimo=possiveis_pontos_x[i];
+        }
+
+
+
+
+        if(ORDEM_ASCII=="false")
+        {
+            var menor_arco_1_x;
+            var menor_arco_1_y;
+            var TEMP_arco_1_x;
+            var TEMP_arco_1_y;
+
+
+            for (i = 0; i < possiveis_pontos_x.length; i++)
+            {
+                menor_arco_1_x=possiveis_pontos_x[i]-0.0;
+                menor_arco_1_y=possiveis_pontos_y[i]-0.0;
+
+                for(j=i-0+1;j<possiveis_pontos_x.length;j++)
+                {
+                    if((possiveis_pontos_x[j]-0.0)<(menor_arco_1_x-0.0))
+                    {
+			//lert(possiveis_pontos_x[j]+" menor "+menor_arco_1_x);
+
+                        TEMP_arco_1_x=possiveis_pontos_x[j];
+                        possiveis_pontos_x[j]=menor_arco_1_x;
+                        possiveis_pontos_x[i]=TEMP_arco_1_x;
+//O mesmo para Y para assim manter o sistema ordenado
+                        TEMP_arco_1_y=possiveis_pontos_y[j];
+                        possiveis_pontos_y[j]=menor_arco_1_y;
+                        possiveis_pontos_y[i]=TEMP_arco_1_y;
+                        break;
+                    }
+///for
+                }
+            }
+
+
+        }
+
+        //É preciso apenas ordenar por altura dado que
+//Numeração em forma horaria começa pelo extremo esquerdo
+        // 1) O extremo esquerdo será o ponto 1
+        // 2) O extremo direito será o ponto 3
+        // 3) A dúvida existe sobre os pontos 2 3  , mas entre estes escolhemos pelo coeficiente ângular
+        // como regra.
+        // Aquela que permita construir uma reta com o maior coeficiente ângular é o ponto.
+
+        //TOMAR DE possiveis_pontos_y os pontos possiveis pontos 2 e 3
+
+        var confuso_2_x=possiveis_pontos_x[1]; //Lembrar que os dois pontos estão à direito do ponto 1
+        var confuso_2_y=possiveis_pontos_y[1];
+
+        var confuso_3_x=possiveis_pontos_x[2];
+        var confuso_3_y=possiveis_pontos_y[2];
+
+//Calculamos os coeficientes angulares:
+        var m_do_confuso_2=(confuso_2_y-possiveis_pontos_y[0])/(confuso_2_x-possiveis_pontos_x[0]);
+        var m_do_confuso_3=(confuso_3_y-possiveis_pontos_y[0])/(confuso_3_x-possiveis_pontos_x[0]);
+
+//Aquele ponto confuso de mairo coeficiente angular será o ponto 2
+
+        var temp_x;
+        var temp_y;
+
+        if(m_do_confuso_2>m_do_confuso_3)
+        {
+            temp_x=possiveis_pontos_x[3];
+            temp_y=possiveis_pontos_y[3];
+
+//O de maior coeficiente angular será o ponto 2
+            possiveis_pontos_x[1]=confuso_2_x;
+            possiveis_pontos_y[1]=confuso_2_y;
+//E o de menor será o ponto 4
+            possiveis_pontos_x[3]=confuso_3_x;
+            possiveis_pontos_y[3]=confuso_3_y;
+//O antigo ponto 4 será o ponto 3
+            possiveis_pontos_x[2]=temp_x;
+            possiveis_pontos_y[2]=temp_y;
+        }
+        else
+        {
+            temp_x=possiveis_pontos_x[3];
+            temp_y=possiveis_pontos_y[3];
+
+//O de maior coeficiente angular será o ponto 2
+            possiveis_pontos_x[1]=confuso_3_x;
+            possiveis_pontos_y[1]=confuso_3_y;
+//E o de menor será o ponto 4
+            possiveis_pontos_x[3]=confuso_2_x;
+            possiveis_pontos_y[3]=confuso_2_y;
+//O antigo ponto 4 será o ponto 3
+            possiveis_pontos_x[2]=temp_x;
+            possiveis_pontos_y[2]=temp_y;
+        }
+
+//Agora temos ordenada a informação
+        for ( i = 0; i < possiveis_pontos_x.length; i++) {
+		dados_GNU=dados_GNU+possiveis_pontos_x[i]+"  "+possiveis_pontos_y[i]+"%5Cn"; //%5Cn
+	}
+
+//////////////////
+}
+
+/*
+Construimos a matriz Q 
+*/
+
+function obter_elementos_Q()
+{
+        var NU21=NU12*(E2/E1);
+
+        var Q11=E1/(1-NU21*NU12);
+        var Q12=(NU12*E2)/(1-NU21*NU12);
+        var Q22=E2/(1-NU21*NU12);
+        var Q66=0.0+G12;
+
+	var saida=[];
+
+	saida.push(Q11);
+	saida.push(Q12);
+	saida.push(Q22);
+	saida.push(Q66);
+
+	return saida;
+}
+
+/*
+Construimos a matriz Q barra
+
+    Qbar(1,1,k) = (c^4)*Q(1,1,k) + 2*(c^2)*(s^2)*(Q(1,2,k) + 2*Q(3,3,k)) + (s^4)*Q(2,2,k);
+    Qbar(1,2,k) = (c^4 + s^4)*Q(1,2,k) + (c^2)*(s^2)*(Q(1,1,k) + Q(2,2,k) - 4*Q(3,3,k));
+    Qbar(2,1,k) = Qbar(1,2,k);
+    Qbar(1,3,k) = (c^3)*s*(Q(1,1,k) - Q(1,2,k) - 2*Q(3,3,k)) - c*(s^3)*(Q(2,2,k) - Q(1,2,k) - 2*Q(3,3,k));
+    Qbar(3,1,k) = Qbar(1,3,k);
+    Qbar(2,2,k) = (s^4)*Q(1,1,k) + 2*(c^2)*(s^2)*(Q(1,2,k) + 2*Q(3,3,k)) + (c^4)*Q(2,2,k);
+    Qbar(2,3,k) = c*(s^3)*(Q(1,1,k) - Q(1,2,k) - 2*Q(3,3,k)) - s*(c^3)*(Q(2,2,k) - Q(1,2,k) - 2*Q(3,3,k));
+    Qbar(3,2,k) = Qbar(2,3,k);
+    Qbar(3,3,k) = (c^2)*(s^2)*(Q(1,1,k) + Q(2,2,k) - 2*Q(1,2,k) - 2*Q(3,3,k)) + (c^4 + s^4)*Q(3,3,k);
+
+*/
+
+function obter_elementos_Q_barra()
+{
+       var theta_radianos = (Math.PI / 180) * angulo;
+        var c = Math.cos(theta_radianos);
+        var s = Math.sin(theta_radianos);
+
+        var NU21=NU12*(E2/E1);
+
+        var Q11=E1/(1-NU21*NU12);
+        var Q12=(NU12*E2)/(1-NU21*NU12);
+        var Q22=E2/(1-NU21*NU12);
+        var Q66=0.0+G12;
+
+
+        var Q11_barra=0.0+(Math.pow(c,4))*Q11+ (Math.pow(s,4))*Q22 + 2*(Math.pow(c,2))*(Math.pow(s,2))*(Q12 + 2*Q66);
+/*
+alert("Math.pow(c,4)*Q11 "+Math.pow(c,4)*Q11+"\n"+
+                    "(Math.pow(s,4))*Q22 "+(Math.pow(s,4))*Q22+"\n"+
+"2*(Math.pow(c,2))*(Math.pow(s,2))*(Q12 + 2*Q66) "+2*(Math.pow(c,2))*(Math.pow(s,2))*(Q12 + 2*Q66)+"\n"+
+                    "Q11_barra  "+Q11_barra+"\n");
+
+    alert("2*(Math.pow(c,2))*(Math.pow(s,2))"
+            +2*(Math.pow(c,2))*(Math.pow(s,2))+"\n"
+            +"*(Q12 + 2*Q66) "+(Q12 + 2*Q66)
+    );
+
+    alert(
+"Q12 "+Q12+
+" Q66 "+Q66
+    );
+*/
+        var Q12_barra=0.0+(Math.pow(c,4) + Math.pow(s,4))*Q12 + (Math.pow(c,2))*(Math.pow(s,2))*(Q11 + Q22 - 4*Q66);
+        var Q22_barra=0.0+(Math.pow(s,4))*Q11 + 2*(Math.pow(c,2))*(Math.pow(s,2))*(Q12 + 2*Q66) + (Math.pow(c,4))*Q22;
+        var Q66_barra=0.0+(Math.pow(c,2))*(Math.pow(s,2))*(Q11 + Q22 - 2*Q12 - 2*Q66) + (Math.pow(c,4) + Math.pow(s,4))*Q66;
+
+        var Q16_barra=0.0+(Math.pow(c,3))*s*(Q11 - Q12 - 2*Q66) - c*(Math.pow(s,3))*(Q22 - Q12 - 2*Q66);
+        var Q26_barra=0.0+c*(Math.pow(s,3))*(Q11 - Q12 - 2*Q66) - s*(Math.pow(c,3))*(Q22 - Q12 - 2*Q66);
+
+
+
+	var saidaQbar=[];
+
+	saidaQbar.push(Q11_barra);
+	saidaQbar.push(Q12_barra);
+	saidaQbar.push(Q22_barra);
+	saidaQbar.push(Q66_barra);
+
+	saidaQbar.push(Q16_barra);
+	saidaQbar.push(Q26_barra);
+
+	return saidaQbar;
+}
+
+
+/*
+Transforma o espaço de deformações num espaço de esforços
+
+Entrada: Vetores em coordenadas globais DEFORMACOES 
+Saida: ESFORÇOS globais (σx,σy) 
+
+É preciso usar uma matriz Qbarra para ter (σx,σy)
+
+No caso da rotação nula Qbarra=Q, por tanto podemos poupar este cálculo usando um if 
+	var valores_Q=[]
+	valores_Q=obter_elementos_Q();
+
+        var Q11=valores_Q[0];
+        var Q12=valores_Q[1];
+        var Q22=valores_Q[2];
+        var Q66=valores_Q[3];
+*/
+
+
+
+function transformando_deformacoes_esforcos()
+{
+        var c = Math.cos((Math.PI / 180) * angulo);
+        var s = Math.sin((Math.PI / 180) * angulo);
+
+	var valores_SIMGA_x=[];
+	var valores_SIMGA_y=[];
+
+		var valores_Q=[]
+		valores_Q=obter_elementos_Q_barra();
+
+//junho20 	alert("valores_Q  "+valores_Q);
+
+		var Q11=valores_Q[0];
+		var Q12=valores_Q[1];
+		var Q22=valores_Q[2];
+		var Q66=valores_Q[3];
+
+		var Q16=valores_Q[4];
+		var Q26=valores_Q[5];
+
+possiveis_pontos_xy=[];
+
+			for(i=0;i<possiveis_pontos_x.length;i++)
+			{
+			    sigma_x=Q11*possiveis_pontos_x[i]+Q12*possiveis_pontos_y[i]+Q16*gammaXY;
+			    sigma_y=Q12*possiveis_pontos_x[i]+Q22*possiveis_pontos_y[i]+Q26*gammaXY;
+			    possivel_tau_xy =Q16*possiveis_pontos_x[i]+Q26*possiveis_pontos_y[i]+Q66*gammaXY;
+			    valores_SIMGA_x.push(sigma_x); 
+			    valores_SIMGA_y.push(sigma_y); 
+				possiveis_pontos_xy.push(possivel_tau_xy);
+//junho20 	alert("sigma_x  i "+i+"  "+sigma_x); alert("sigma_y  i "+i+"  "+sigma_y);
+			}
+	
+
+
+//Entregamos a transformação
+        for(i=0;i<valores_SIMGA_x.length;i++)
+        {
+            possiveis_pontos_x[i]=valores_SIMGA_x[i];
+            possiveis_pontos_y[i]=valores_SIMGA_y[i];
+        }
+}
+
+
+function calcula_apenas_4_vertices(alfa, s, c, tau_xy,a,b,C,d)
+{
+	var matriz_invertida = new Object();
+	matriz_invertida=funcao_inversa_RETURN(a, b, C, d);
+
+	eq4_1(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_2(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_3(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_4(alfa, s, c, tau_xy, matriz_invertida);
+}
+
+
+
+function calcula_eq4_ate_eq8_vertices(alfa, s, c, tau_xy,a,b,C,d)
+{
+	var matriz_invertida = new Object();
+	matriz_invertida=funcao_inversa_RETURN(a, b, C, d);
+	eq4_5(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_6(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_7(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_8(alfa, s, c, tau_xy, matriz_invertida);
+//
+
+}
+
+
+function calcula_eq9_ate_eq12_vertices(alfa, s, c, tau_xy,a,b,C,d)
+{
+	var matriz_invertida = new Object();
+	matriz_invertida=funcao_inversa_RETURN(a, b, C, d);
+	eq4_9(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_10(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_11(alfa, s, c, tau_xy, matriz_invertida);
+	eq4_12(alfa, s, c, tau_xy, matriz_invertida);
+//
+
+}
+
+/*
+No caso de 6 pontos, fechamos
+
+http://127.0.0.1/conversao_java_javascript/maxima_deformacao.htm?/21/1/00/0/02/0
+
+*/
+
+function fechar6pontos() 
+{
+        //Fazemos um estudo MASSIVO dos 6 pontos
+        //Estudo inicial partendo do primeiro ponto
+
+//Para ter um controle de quais são os pontos que foram estudados e escolhidos
+//como parte do caminho
+
+	var numeros=[];
+
+	    numeros.push(1);
+	    numeros.push(2);
+	    numeros.push(3);
+	    numeros.push(4);
+	    numeros.push(5);
+
+        var ponto_inicial_x = TRUE_pontos_x[0];
+        var ponto_inicial_y = TRUE_pontos_y[0];
+
+//Fazemos a varredura dos pares para obter o ângulo.
+//Solução rápida: Invocar a função várias vezes
+
+        var angulo_temporal=0.0;
+        var i_temp=0,j_temp=0;
+
+        for ( i = 1; i < TRUE_pontos_x.length; i++)
+        {
+            for( j=i+1; j<TRUE_pontos_x.length;j++)
+            {
+                var angulo=calcular_angulo(ponto_inicial_x,ponto_inicial_y,i,j);
+
+                if(angulo>=angulo_temporal)
+                {
+                    angulo_temporal=angulo;
+                    i_temp=i;
+                    j_temp=j;
+                }
+
+            }
+        }
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[0]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[0]);
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[i_temp]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[i_temp]);
+
+        numeros.splice(numeros.indexOf(i_temp),1);
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+        var ANTIGO_i_temp=i_temp;
+        var ANTIGO_j_temp=j_temp;
+
+        //Estudo inicial partendo do primeiro ponto
+        ponto_inicial_x = TRUE_pontos_x[ANTIGO_i_temp];
+        ponto_inicial_y = TRUE_pontos_y[ANTIGO_i_temp];
+
+        var ponto_inicial_x_CONTRA = TRUE_pontos_x[ANTIGO_j_temp];
+        var ponto_inicial_y_CONTRA = TRUE_pontos_y[ANTIGO_j_temp];
+
+//Fazemos a varredura dos pares para obter o ângulo.
+//Solução rápida: Invocar a função várias vezes
+
+//Tendo 3 ptos. Será preciso apenas detetar os outros
+//
+        angulo_temporal=0.0;
+
+        for(j=1; j<TRUE_pontos_x.length;j++) //acima de 0 (Antigo Ponto Inicial)
+        {
+            if(j!=ANTIGO_i_temp)
+            {
+                var angulo=calcular_angulo(
+                        ponto_inicial_x,
+                        ponto_inicial_y,
+                        0,
+                        j);
+
+                if(angulo>=angulo_temporal)
+                {
+                    angulo_temporal=angulo;
+                    j_temp=j;
+                }
+            }
+        }
+
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+// Agora do outro lado
+
+        angulo_temporal=0.0;
+
+        for(j=1; j<TRUE_pontos_x.length; j++) //acima de 0 (Antigo Ponto Inicial)
+        {
+            if(j!=ANTIGO_j_temp)
+            {
+
+                var angulo=calcular_angulo(
+                        ponto_inicial_x_CONTRA,
+                        ponto_inicial_y_CONTRA,
+                        0,
+                        j);
+
+                if(angulo>=angulo_temporal)
+                {
+                    angulo_temporal=angulo;
+                    i_temp=0;
+                    j_temp=j;
+                }
+            }
+        }
+        //colocamos o não usado como inicial, é como um restante
+
+        numeros.splice(numeros.indexOf(i_temp),1);
+
+        POLIGONO_TRUE_pontos_x.push(TRUE_pontos_x[numeros[0]]);
+        POLIGONO_TRUE_pontos_y.push(TRUE_pontos_y[numeros[0]]);
+
+        POLIGONO_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+        POLIGONO_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+        for(i=0;i<ANGULADOS_TRUE_pontos_x.length;i++)
+        {
+            POLIGONO_TRUE_pontos_x.push(ANGULADOS_TRUE_pontos_x[i]);
+            POLIGONO_TRUE_pontos_y.push(ANGULADOS_TRUE_pontos_y[i]);
+        }
+
+	construir_COM_POLIGONO_TRUE_pontos();
+////////////////////
+}
+
+/*
+Nesta função o cálculo é feito, mas para poupar poder computacional vemos 
+o ángulo para evitar o uso desnecesário de matrices.
+*/
+
+function calculo_conforme_angulo(angulo,tau_xy)
+{
+
+        var alfa = 1.0;
+        var beta = 2.0;
+        var c = Math.cos((Math.PI / 180) * angulo);
+        var s = Math.sin((Math.PI / 180) * angulo);
+
+        var c2 = c * c;
+        var s2 = s * s;
+
+        var a, b, C, d;
+
+        //Estes valores se relacionam com a matriz [[a b][c d]]
+        var a = c2;
+        var b = s2;
+        var C = b;
+        var d = a;
+
+	if(angulo % 90.0 == 0)
+	{
+		calcula_apenas_4_vertices(alfa, s, c, tau_xy,a,b,C,d);
+		transformando_deformacoes_esforcos();
+		ordenar_quatro_pontos();
+		usar_GraphView();
+	}
+	else
+	{
+//No caso de um ângulo diferente é preciso calcular mais um pouco usando as equações 4.5, 4.6 até 4.12 y escogiendo entre 12 posibles pontos.
+//Por tanto fazemos um cálculo de 12 pontos.
+	if(angulo % 45.0 != 0)
+	{
+		calcula_apenas_4_vertices(alfa, s, c, tau_xy,a,b,C,d);
+	}
+
+
+		//Construimos a segunda Matriz de multiplicação.
+		// No caso de ser uma matriz sem inverssa então ficamos quietinhos
+
+		//Para eq. 4.5 até 4.8:
+		a = c2;
+		b = s2;
+		C = -beta * s * c;
+		d = beta * s * c;
+
+		calcula_eq4_ate_eq8_vertices(alfa, s, c, tau_xy,a,b,C,d);
+
+	//Para eq. 4.9 até 4.12:
+		a = s2;
+		b = c2;
+		C = -beta * s * c;
+		d = beta * s * c;
+
+	if(angulo % 45.0 != 0)
+	{
+		calcula_eq9_ate_eq12_vertices(alfa, s, c, tau_xy,a,b,C,d);
+	}
+
+
+//Agora é preciso avaliar e saber quais destes pontos devem ser ordenados, aqueles que vamos chamar de "TRUE_pontos_x" os quais são transformados
+
+		criterio_puro_maxima_deformacao(angulo, tau_xy);
+
+//Varios ELSES , de 4 esquinas sem ângulo multiplo de Pi/2
+
+
+		if (TRUE_pontos_x.length==4) {
+			alert("Envelope de 4 pontos. Máxima deformação");
+			fecharPONTOS();
+		}
+//Varios ELSES , de 5 esquinas
+		if (TRUE_pontos_x.length==5) {
+			alert("Envelope de 5 pontos");
+		        fechar5pontos();
+		}
+//Varios ELSES , de 6 esquinas
+		if (TRUE_pontos_x.length==6) {
+			alert("Envelope de 6 pontos");
+		        fechar6pontos();
+		}
+/////////fim do else
+	}
+
+//Enviamos as informações ao servidor
+
+	for ( i = 0; i < POLIGONO_TRUE_pontos_x.length; i++) {
+//		dados_GNU=dados_GNU+POLIGONO_TRUE_pontos_x[i]+"  "+POLIGONO_TRUE_pontos_y[i]+"%5Cn"; //%5Cn
+	}
+//////////////////////////////////////////
+}
+
+var ANGULADOS_TRUE_pontos_x=[];
+var ANGULADOS_TRUE_pontos_y=[];
+
+var POLIGONO_TRUE_pontos_x=[];
+var POLIGONO_TRUE_pontos_y=[];
+
+/*
+Função para calcular o ângulo dado 3 pontos
+*/
+
+function calcular_angulo(ponto_inicial_x,ponto_inicial_y, i, j)
+{
+        //ponto inicial
+        //Será preciso calcular as normas
+        // e até um produto inter
+        //Vetorizando
+        var vetor_1_x=TRUE_pontos_x[i]-ponto_inicial_x;
+        var vetor_1_y=TRUE_pontos_y[i]-ponto_inicial_y;
+        //ponto final
+        var vetor_2_x=TRUE_pontos_x[j]-ponto_inicial_x;
+        var vetor_2_y=TRUE_pontos_y[j]-ponto_inicial_y;
+
+        //normas
+
+        //vetor_1
+
+        var norma_1=Math.sqrt(vetor_1_x*vetor_1_x-0.0+vetor_1_y*vetor_1_y);
+
+        var norma_2=Math.sqrt(vetor_2_x*vetor_2_x-0.0+vetor_2_y*vetor_2_y);
+
+        //Produto interno
+
+        var interno=vetor_1_x*vetor_2_x-0.0+vetor_1_y*vetor_2_y;
+
+        var argumento=interno/(norma_1*norma_2);
+
+        var angulo=Math.acos(argumento);
+
+        return (angulo*180)/Math.PI;
+}
+
+
+/*
+Función auxiliar para detectar todas las ocureencias
+
+*/
+function getAllIndexes(arr, val) {
+    var indexes = [], i = -1;
+    while ((i = arr.indexOf(val, i+1)) != -1){
+        indexes.push(i);
+    }
+    return indexes;
+}
+
+/*
+
+*/
+
+//Marco10
+//Ordenamos os 5 pontos
+function fechar5pontos()
+{
+
+
+     //Fazemos um estudo MASSIVO dos 6 pontos
+     //Estudo inicial partendo do primeiro ponto
+
+     var numeros=[];
+//Por segurança limpamos a lista
+     numeros.push(1);
+     numeros.push(2);
+     numeros.push(3);
+     numeros.push(4);
+     numeros.push(5);
+
+     var ponto_inicial_x = TRUE_pontos_x[0];
+     var ponto_inicial_y = TRUE_pontos_y[0];
+
+//Fazemos a varredura dos pares para obter o ângulo.
+//Aqui será um duplo for para justamente poder obter o primeiro segmento
+
+     var angulo_temporal=0.0;
+     var i_temp=0,j_temp=0;
+
+     for ( i = 1; i < TRUE_pontos_x.length; i++)
+     {
+         for( j=i+1; j<TRUE_pontos_x.length;j++)
+         {
+             var angulo=calcular_angulo(ponto_inicial_x,ponto_inicial_y,i,j);
+
+             if(angulo>=angulo_temporal)
+             {
+                 angulo_temporal=angulo;
+                 i_temp=i;
+                 j_temp=j;
+             }
+
+         }
+     }
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[0]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[0]);
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[i_temp]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[i_temp]);
+
+        numeros.splice(numeros.indexOf(i_temp),1);
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+//Ele pega o maior ângulo, dado que envolve uma figura....
+
+//Eliminamos o primeiro elemento.
+
+//Extremo para ser estudado:
+
+     var ANTIGO_i_temp=i_temp;
+     var ANTIGO_j_temp=j_temp;
+
+     //Estudo inicial partendo do primeiro ponto
+     ponto_inicial_x = TRUE_pontos_x[ANTIGO_i_temp];
+     ponto_inicial_y = TRUE_pontos_y[ANTIGO_i_temp];
+
+     var ponto_inicial_x_CONTRA = TRUE_pontos_x[ANTIGO_j_temp];
+     var ponto_inicial_y_CONTRA = TRUE_pontos_y[ANTIGO_j_temp];
+
+     //Fazemos a varredura dos pares para obter o ângulo.
+
+     angulo_temporal=0.0;
+
+     for(j=1; j<TRUE_pontos_x.length;j++) //acima de 0 (Antigo Ponto Inicial)
+     {
+         if(j!=ANTIGO_i_temp)
+         {
+             var angulo=calcular_angulo(
+                     ponto_inicial_x,
+                     ponto_inicial_y,
+                     0,
+                     j);
+
+             if(angulo>=angulo_temporal)
+             {
+                 angulo_temporal=angulo;
+                 j_temp=j;
+             }
+         }
+     }
+
+
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+
+//Domingo
+// Agora do outro lado
+
+     angulo_temporal=0.0;
+
+     for( j=1; j<TRUE_pontos_x.length;j++) //acima de 0 (Antigo Ponto Inicial)
+     {
+         if(j!=ANTIGO_j_temp)
+         {
+
+             angulo=calcular_angulo(
+                     ponto_inicial_x_CONTRA,
+                     ponto_inicial_y_CONTRA,
+                     0,
+                     j);
+
+             if(angulo>=angulo_temporal)
+             {
+                 angulo_temporal=angulo;
+                 i_temp=0;
+                 j_temp=j;
+             }
+         }
+     }
+
+     POLIGONO_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+     POLIGONO_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+     for(i=0;i<ANGULADOS_TRUE_pontos_x.length;i++)
+     {
+         POLIGONO_TRUE_pontos_x.push(ANGULADOS_TRUE_pontos_x[i]);
+         POLIGONO_TRUE_pontos_y.push(ANGULADOS_TRUE_pontos_y[i]);
+     }
+
+     construir_COM_POLIGONO_TRUE_pontos();
+////////////////////
+}
+
+
+/*
+Visualizar, com ajuda do GNUplot, poupa tempo de depuração
+
+*/
+
+function envio_gnu()
+{
+//antigo http://192.168.250.1/setembro/graficas_janeiro/diagramacao/gnu_registrar.php
+    var d = new Date();
+    var n = d.getTime();
+
+    var theUrl="http://ven2020.com.br/agosto2017/arquitetando/gnu_registrar.php?identificador="+angulo+"_DEFORMACAO_WEB_"+n+"&dados="
++	dados_GNU;
+
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function() { 
+        if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+            callback(xmlHttp.responseText);
+    }
+    xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+    xmlHttp.send(null);
+}
+
+// Informamos as saídas na tela
+
+//Enviamos as informações ao servidor
+
+$(document).ready(function(){
+
+        $("#entrada_theta").text(angulo);
+        $("#entrada_sigma_x").text(sigX);
+        $("#entrada_sigma_y").text(sigY);
+        $("#entrada_tau_xy").text(gammaXY);
+	$("#lamina_url").text("Lamina de: "+nome);
+	$("#EPSILON_T_1").text(EPSILON_T_1);
+	$("#EPSILON_T_2").text(EPSILON_T_2);
+	$("#EPSILON_C_1").text(EPSILON_C_1);
+	$("#EPSILON_C_2").text(EPSILON_C_2);
+	$("#GAMMA12").text(GAMMA12);
+
+	calculo_conforme_angulo(angulo,gammaXY);
+
+//facilitamos pular de um envelope para outro
+
+
+	document.getElementById("envelope_max_tensao").setAttribute('href', "./maxima_tensao.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+	document.getElementById("envelope_max_deformacao").setAttribute('href', "./maxima_deformacao.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+	document.getElementById("envelope_tsai_hill").setAttribute('href', "./tsai_hill.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+
+	document.getElementById("envelope_azzi_tsai").setAttribute('href', "./azzi_tsai.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+	document.getElementById("envelope_tsai_wu").setAttribute('href', "./tsai_wu.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+	document.getElementById("envelope_hoffman").setAttribute('href', "./hoffman.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+
+	document.getElementById("envelope_hashin").setAttribute('href', "./hashin.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+	document.getElementById("envelope_christessen").setAttribute('href', "./christessen.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+	document.getElementById("envelope_puck").setAttribute('href', "./puck.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+	document.getElementById("envelope_larc03").setAttribute('href', "./larc03.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+gammaXY);
+
+
+	envio_gnu();
+///////////
+});
+
+</script>
+
+<script src="./maxima_deformacao/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+
+<script src="./maxima_deformacao/usar_GraphView.js">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./maxima_deformacao/criterio_puro_maxima_deformacao.js">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./maxima_deformacao/fecharPONTOS.js">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./maxima_deformacao/construir_COM_POLIGONO_TRUE_pontos.js">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+<script src="./maxima_deformacao/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./maxima_deformacao/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./maxima_deformacao/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./maxima_deformacao/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+</head>
+
+<body>
+
+<div class="container">
+  <div class="row">
+    <div class="col-sm-4">
+	<div class="jumbotron text-center">
+	  <p>Critério de Máxima Deformação:<br>
+	  </p><p>Entrada:<br></p> 
+		Ângulo: <label id="entrada_theta">11</label> (Degree) <br> 
+		σ<sub>x</sub>: <label id="entrada_sigma_x">247935000</label> (Pa) <br>
+		σ<sub>y</sub>: <label id="entrada_sigma_y">02</label> (Pa) <br>
+		γ<sub>xy</sub>: <label id="entrada_tau_xy">03</label> (m/m) <br>
+		<label id="lamina_url">Lamina de: IM7_5250-4</label><br>
+		Propriedades mecânicas desta lâmina:<br> 
+		(ε<sub>1</sub>)<sub>T</sub><sup>U</sup>:  <label id="EPSILON_T_1"></label> (m/m) <br>
+		(ε<sub>2</sub>)<sub>T</sub><sup>U</sup>:  <label id="EPSILON_T_2"></label> (m/m) <br>
+		(ε<sub>1</sub>)<sub>C</sub><sup>U</sup>:  <label id="EPSILON_C_1"></label> (m/m) <br>
+		(ε<sub>2</sub>)<sub>C</sub><sup>U</sup>:  <label id="EPSILON_C_2"></label> (m/m) <br>
+		(γ<sub>12</sub>)<sub>U</sub>:  <label id="GAMMA12"></label> (m/m) <br>
+	</div>
+
+	<div class="jumbotron text-center">
+	  <p>
+	  Vértices deste envelope<br>
+	(σ<sub>x</sub>,σ<sub>y</sub>)
+	  </p>
+		<a id="vertice_0" href="" target="_blank"/a></a><br>
+		<a id="vertice_1" href="" target="_blank"/a></a><br>
+		<a id="vertice_2" href=""  target="_blank"/a></a><br>
+		<a id="vertice_3" href=""  target="_blank"/a></a><br>
+		<a id="vertice_4" href=""  target="_blank"/a></a><br>
+		<a id="vertice_5" href=""  target="_blank"/a></a><br>
+		<a id="vertice_6" href=""  target="_blank"/a></a><br>
+		<a id="vertice_7" href=""  target="_blank"/a></a><br>
+
+	</div>
+
+	<div class="jumbotron text-center">
+	  <p>
+	  Reproduzir este mesmo envelope usando outros critérios:<br>
+	  </p>
+		<a id="envelope_max_tensao" href="">Máxima Tensão</a><br>
+
+		<a id="envelope_max_deformacao" href="" /a>Máxima Deformação</a><br>
+		<a id="envelope_tsai_hill" href="" >		Tsai Hill</a><br>
+		<a id="envelope_azzi_tsai" href="" >		Azzi Tsai</a><br>
+		<a id="envelope_tsai_wu" href="" >		Tsai-wu</a><br>
+		<a id="envelope_hoffman" href="" >		Hoffman</a><br>
+		<a id="envelope_hashin" href="" >		Hashin</a><br>
+		<a id="envelope_christessen" href="" >		Christessen</a><br>
+		<a id="envelope_puck" href="" >		Puck</a><br>
+		<a id="envelope_larc03" href="" >		Larc03</a><br>
+	</div>
+
+    </div>
+    <div class="col-sm-8" align="center">
+      <h3>Representação gráfica deste tipo de envelope</h3>
+      <h4>Plano (σ<sub>x</sub>,σ<sub>y</sub>)</h4>
+	<div class="ct-chart ct-golden-section" id="chart1"></div>
+    </div>
+  </div>
+</div>
+
+</body></html>

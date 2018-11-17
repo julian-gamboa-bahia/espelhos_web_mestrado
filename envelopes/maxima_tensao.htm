@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>Envelope do critério de Máxima Tensão</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="2_files/bootstrap.css">
+  <script src="2_files/jquery.js"></script>
+  <script src="2_files/bootstrap.js"></script>
+
+<!-Biblioteca responsiva para ser usada na parte gráfica->
+
+	<link rel="stylesheet"  href="dist/chartist.min.css">
+	<script src="dist/chartist.min.js"></script>
+
+
+<!--Colocamos cores específicos para cada traço-->
+<style type="text/css">
+	.ct-series-a .ct-bar, .ct-series-a .ct-line, .ct-series-a .ct-point, .ct-series-a .ct-slice-donut {
+	    stroke: #0CC162;
+	}
+	.ct-series-b .ct-bar, .ct-series-b .ct-line, .ct-series-b .ct-point, .ct-series-b .ct-slice-donut {
+	    stroke: #0CC162;
+	}
+	.ct-chart {
+	    margin: auto;
+	}
+</style>
+
+<script>
+
+/*
+Março 5:
+Usamos o mesmo sistema de PARSER 
+
+
+*/
+
+url_original=window.location.href;
+var pre_argumentos = url_original.split("?");
+var argumentos=pre_argumentos[1].split("/");
+
+	var angulo=argumentos[1];
+	var angulo_GLOBAL=argumentos[1];
+	var laminaURL=argumentos[2];
+	var criterio=argumentos[3];
+	var sigX=argumentos[4];
+	var sigY=argumentos[5];
+	var tauXY=argumentos[6];
+var limpar=argumentos[7];
+
+// Procuramos no JSON 
+
+var laminaURL_numerico=parseInt(laminaURL)-1;
+
+
+
+$.getJSON("macro_laminas.json", function(dados) {
+        nome=dados[laminaURL_numerico].NOME;
+
+//Coletamos as informações de resistsencias em forma de tensões extremas
+//cuiado com o sinal
+
+//E na forma de deformações extremas
+        SIGMA_T_1=dados[laminaURL_numerico].SIGMA_T_1;
+        SIGMA_T_2=dados[laminaURL_numerico].SIGMA_T_2;
+//cuiado com o sinal
+        SIGMA_C_1=-dados[laminaURL_numerico].SIGMA_C_1;
+        SIGMA_C_2=-dados[laminaURL_numerico].SIGMA_C_2;
+        TAU12=dados[laminaURL_numerico].TAU12;
+
+});
+
+alert("Envelope de Falha do critério de máxima tensão");
+
+// O critério códificado em forma simples:
+
+function criterio_maxima_deformacao(sigma_x,sigma_y,tau_xy,theta,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12){
+	
+	theta_radianos=(Math.PI/180)*theta;
+
+	c=Math.cos(theta_radianos);
+	s=Math.sin(theta_radianos);
+	c2=c*c;
+	s2=s*s;
+
+var alpha=2;
+var beta=1;
+
+	sigma_1=c2*sigma_x+s2*sigma_y+alpha*c*s*tau_xy;
+	sigma_2=s2*sigma_x+c2*sigma_y-alpha*c*s*tau_xy;
+	tau_12=-beta*s*c*sigma_x+beta*s*c*sigma_y+(c2-s2)*tau_xy;
+
+// Vemos o IF na direção local 1 
+
+	if_1_t=Math.abs(sigma_1/SIGMA_T_1); // Tração 
+	if_1_c=Math.abs(sigma_1/SIGMA_C_1); // Compressão
+
+	if(sigma_1>0)
+	{
+		if_1=if_1_t;
+	}
+	else
+	{
+		if_1=if_1_c;
+	}
+
+// Vemos o IF na direção local 2
+
+	if_2_t=Math.abs(sigma_2/SIGMA_T_2); // Tração 
+	if_2_c=Math.abs(sigma_2/SIGMA_C_2); // Compressão
+
+	if(sigma_2>0)
+	{
+		if_2=if_2_t;
+	}
+	else
+	{
+		if_2=if_2_c;
+	}
+
+	if_12=Math.abs(tau_12/TAU12); //cisalhamento
+
+    var IFs = new Object();
+        IFs[0] = if_1;
+        IFs[1] = if_2;
+        IFs[2] = if_12;
+    return IFs;
+}
+
+/*
+
+*/
+
+function	funcao_inversa_RETURN(a, b, c, d) {
+
+        if ((a * d) != (b * c)) {
+
+            var determinante = (a * d) - (b * c);
+            var inverse_a, inverse_b, inverse_c, inverse_d;
+            var inverse_a = d / determinante;
+            var inverse_b = -b / determinante;
+            var inverse_c = -c / determinante;
+            var inverse_d = a / determinante;
+
+//Descartado problema com INVERTIDA   lert("Inverse Matrix\n"+inverse_a+"  "+inverse_b+" \n"+inverse_c+"  "+inverse_d);
+ 
+	var inversa = new Object();
+	inversa[0] = inverse_a;
+	inversa[1] = inverse_b;
+	inversa[2] = inverse_c;
+	inversa[3] = inverse_d;
+	return inversa;
+
+        } else {
+//            return array_list;
+        }
+}
+
+
+var possiveis_pontos_x = [];
+var possiveis_pontos_y = [];
+
+//Este array permite colocar aqueles cujo IF seja menos ou igual à 1, ou seja aquela que sea um vertice do envelope
+
+var TRUE_pontos_x=[];
+var TRUE_pontos_y=[];
+
+/*
+Ordenar os elementos 
+para que possam ser representados
+
+*/
+
+var dados_GNU="";
+
+
+
+
+
+/*
+Transforma o espaço de deformações num espaço de esforços
+
+*/
+
+function transformando_deformacoes_esforcos()
+{
+/*
+Deixado em vazio, dado que não afeta a geração do envelope
+*/
+}
+
+
+
+/*
+No caso de 6 pontos, fechamos
+
+http://127.0.0.1/conversao_java_javascript/maxima_deformacao.htm?/21/1/00/0/02/0
+
+*/
+
+function fechar6pontos() 
+{
+        //Fazemos um estudo MASSIVO dos 6 pontos
+        //Estudo inicial partendo do primeiro ponto
+
+//Para ter um controle de quais são os pontos que foram estudados e escolhidos
+//como parte do caminho
+
+	var numeros=[];
+
+	    numeros.push(1);
+	    numeros.push(2);
+	    numeros.push(3);
+	    numeros.push(4);
+	    numeros.push(5);
+
+        var ponto_inicial_x = TRUE_pontos_x[0];
+        var ponto_inicial_y = TRUE_pontos_y[0];
+
+//Fazemos a varredura dos pares para obter o ângulo.
+//Solução rápida: Invocar a função várias vezes
+
+        var angulo_temporal=0.0;
+        var i_temp=0,j_temp=0;
+
+        for ( i = 1; i < TRUE_pontos_x.length; i++)
+        {
+            for( j=i+1; j<TRUE_pontos_x.length;j++)
+            {
+                var angulo=calcular_angulo(ponto_inicial_x,ponto_inicial_y,i,j);
+
+                if(angulo>=angulo_temporal)
+                {
+                    angulo_temporal=angulo;
+                    i_temp=i;
+                    j_temp=j;
+                }
+
+            }
+        }
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[0]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[0]);
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[i_temp]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[i_temp]);
+
+        numeros.splice(numeros.indexOf(i_temp),1);
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+        var ANTIGO_i_temp=i_temp;
+        var ANTIGO_j_temp=j_temp;
+
+        //Estudo inicial partendo do primeiro ponto
+        ponto_inicial_x = TRUE_pontos_x[ANTIGO_i_temp];
+        ponto_inicial_y = TRUE_pontos_y[ANTIGO_i_temp];
+
+        var ponto_inicial_x_CONTRA = TRUE_pontos_x[ANTIGO_j_temp];
+        var ponto_inicial_y_CONTRA = TRUE_pontos_y[ANTIGO_j_temp];
+
+//Fazemos a varredura dos pares para obter o ângulo.
+//Solução rápida: Invocar a função várias vezes
+
+//Tendo 3 ptos. Será preciso apenas detetar os outros
+//
+        angulo_temporal=0.0;
+
+        for(j=1; j<TRUE_pontos_x.length;j++) //acima de 0 (Antigo Ponto Inicial)
+        {
+            if(j!=ANTIGO_i_temp)
+            {
+                var angulo=calcular_angulo(
+                        ponto_inicial_x,
+                        ponto_inicial_y,
+                        0,
+                        j);
+
+                if(angulo>=angulo_temporal)
+                {
+                    angulo_temporal=angulo;
+                    j_temp=j;
+                }
+            }
+        }
+
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+        ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+        ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+// Agora do outro lado
+
+        angulo_temporal=0.0;
+
+        for(j=1; j<TRUE_pontos_x.length; j++) //acima de 0 (Antigo Ponto Inicial)
+        {
+            if(j!=ANTIGO_j_temp)
+            {
+
+                var angulo=calcular_angulo(
+                        ponto_inicial_x_CONTRA,
+                        ponto_inicial_y_CONTRA,
+                        0,
+                        j);
+
+                if(angulo>=angulo_temporal)
+                {
+                    angulo_temporal=angulo;
+                    i_temp=0;
+                    j_temp=j;
+                }
+            }
+        }
+        //colocamos o não usado como inicial, é como um restante
+
+        numeros.splice(numeros.indexOf(i_temp),1);
+
+        POLIGONO_TRUE_pontos_x.push(TRUE_pontos_x[numeros[0]]);
+        POLIGONO_TRUE_pontos_y.push(TRUE_pontos_y[numeros[0]]);
+
+        POLIGONO_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+        POLIGONO_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+        for(i=0;i<ANGULADOS_TRUE_pontos_x.length;i++)
+        {
+            POLIGONO_TRUE_pontos_x.push(ANGULADOS_TRUE_pontos_x[i]);
+            POLIGONO_TRUE_pontos_y.push(ANGULADOS_TRUE_pontos_y[i]);
+        }
+
+//alert("angulo_GLOBAL "+angulo_GLOBAL);
+
+	construir_COM_POLIGONO_TRUE_pontos(angulo_GLOBAL,tauXY);
+////////////////////
+}
+
+/*
+Creamos os
+
+TRUE_pontos_x
+
+Para saber quais são os vertices do grafo
+
+*/
+
+function criterio_puro_maxima_tensao(angulo, tau_xy)
+{
+        /*
+        * Numerico,
+        *
+        *
+        * */
+
+
+	var Saida = [];
+
+        var theta_radianos = (Math.PI / 180) * angulo;
+
+        var c = Math.cos(theta_radianos);
+        var s = Math.sin(theta_radianos);
+        var c2 = c * c;
+        var s2 = s * s;
+
+        //vemos o IF diretamente
+
+        var sigma_x;
+        var sigma_y;
+
+        var sigma_1;
+        var sigma_2;
+        var tau_12;
+        var normalizado_SIGMA_T_1;
+        var normalizado_SIGMA_C_1;
+        var normalizado_SIGMA_T_2;
+        var normalizado_SIGMA_C_2;
+        var normalizado_TAU12;
+
+//Máxima Tensão, por tanto o alpha é 2 
+alpha=2;
+beta=1;
+        for (i = 0; i < possiveis_pontos_x.length; i++) {
+
+            sigma_x = possiveis_pontos_x[i];
+            sigma_y = possiveis_pontos_y[i];
+
+            //calculando em locais
+
+            sigma_1 = c2 * sigma_x -0.0+ s2 * sigma_y + alpha * c * s * tau_xy;
+            sigma_2 = s2 * sigma_x -0.0+ c2 * sigma_y - alpha * c * s * tau_xy;
+            tau_12 = -beta*s * c * sigma_x -0.0+ beta*s * c * sigma_y + (c2 - s2) * tau_xy;
+
+
+            //normalizando
+            //Para a direção local 1
+		if(sigma_1>0)
+		{
+			    normalizado_if_1 = Math.abs(sigma_1 / SIGMA_T_1); // Tração
+		}
+		else
+		{
+			    normalizado_if_1 = Math.abs(sigma_1 / SIGMA_C_1); // Compressão
+		}
+            //Para a direção local 2
+		if(sigma_2>0)
+		{
+			normalizado_if_2 = Math.abs(sigma_2 / SIGMA_T_2); // Tração
+		}
+		else
+		{
+			normalizado_if_2 = Math.abs(sigma_2 / SIGMA_C_2); // Compressão
+		}
+            //Para o esforço cisalhante
+            normalizado_if_12 = Math.abs(tau_12 / TAU12);
+            //Se qualquer um dos anteriores supera o valor de 1, significa que o IF foi superado.
+            //janeiro24 mas estando ciente do erro numérico pode ser mími é preciso definir uma tolerância
+            // de 0.01
+
+            var tolerancia = 0.01;
+
+//alert(possiveis_pontos_x.length+"  "+i);
+
+            if (
+                    (normalizado_if_1 < 1+tolerancia) &&
+                            (normalizado_if_2 < 1+tolerancia) &&
+                            (normalizado_if_12 < 1+tolerancia)
+                    ) {
+                Saida.push("true");
+		//alert("normalizado_if_1  "+normalizado_if_1+"  "+normalizado_if_2+"  "+normalizado_if_12);
+            } else {
+                Saida.push("false");
+		//alert("NAO PRESTA normalizado_if_1  "+normalizado_if_1+"  "+normalizado_if_2+"  "+normalizado_if_12);
+            }
+
+//////end for 
+        }
+/*
+Transformamos para poder criar pontos verdadeiros
+*/
+	transformando_deformacoes_esforcos();
+	for (i = 0; i < possiveis_pontos_y.length; i++) 
+	{
+                if (Saida[i]=="true") {
+                    //usando apenas os pontos que sejam definidos como convenientes ou seja aqueles
+                    // de IF unitário
+                    TRUE_pontos_x.push(possiveis_pontos_x[i]);
+                    TRUE_pontos_y.push(possiveis_pontos_y[i]);
+                }
+	}
+
+
+///////////
+}
+
+/*
+Nesta função o cálculo é feito, mas para poupar poder computacional vemos 
+o ángulo para evitar o uso desnecesário de matrices.
+*/
+
+function	calculo_conforme_angulo(angulo,tau_xy)
+{
+
+        var alfa = 2.0;
+        var beta = 1.0;
+        var c = Math.cos((Math.PI / 180) * angulo);
+        var s = Math.sin((Math.PI / 180) * angulo);
+
+        var c2 = c * c;
+        var s2 = s * s;
+
+        var a, b, C, d;
+
+        //Estes valores se relacionam com a matriz [[a b][c d]]
+        var a = c2;
+        var b = s2;
+        var C = b;
+        var d = a;
+
+	if(angulo % 90.0 == 0)
+	{
+		calcula_apenas_4_vertices(alfa, s, c, tau_xy,a,b,C,d);
+		transformando_deformacoes_esforcos();
+		ordenar_quatro_pontos();
+		usar_GraphView();
+	}
+	else
+	{
+//No caso de um ângulo diferente é preciso calcular mais um pouco usando as equações 4.5, 4.6 até 4.12 y escogiendo entre 12 posibles pontos.
+//Por tanto fazemos um cálculo de 12 pontos.
+
+
+//cuidado,ângulo de 45 pode gerar determinantes nulas
+		if(angulo % 45.0 != 0)
+		{
+			calcula_apenas_4_vertices(alfa, s, c, tau_xy,a,b,C,d);
+		}
+		else
+		{
+			 alert("apreciase uma linha no plano local");
+		}
+
+
+		//Construimos a segunda Matriz de multiplicação.
+		// No caso de ser uma matriz sem inverssa então ficamos quietinhos
+
+		//Para eq. 4.5 até 4.8:
+		a = c2;
+		b = s2;
+		C = -beta * s * c;
+		d = beta * s * c;
+
+		calcula_eq4_ate_eq8_vertices(alfa, s, c, tau_xy,a,b,C,d);
+
+	//Para eq. 4.9 até 4.12:
+
+		a = s2;
+		b = c2;
+		C = -beta * s * c;
+		d = beta * s * c;
+
+
+
+		if(angulo % 45.0 != 0)
+		{
+			calcula_eq9_ate_eq12_vertices(alfa, s, c, tau_xy,a,b,C,d);
+		}
+		else
+		{
+			 alert("não cálcula os pontos degenerados");
+		}
+
+//Agora é preciso avaliar e saber quais destes pontos devem ser ordenados, aqueles que vamos chamar de "TRUE_pontos_x" os quais são transformados
+
+		criterio_puro_maxima_tensao(angulo, tau_xy);
+
+//Varios ELSES , de 4 esquinas sem ângulo multiplo de Pi/2
+
+		if (TRUE_pontos_x.length==4) {
+			alert("Envelope de 4 pontos");
+			fecharPONTOS();
+		}
+//Varios ELSES , de 5 esquinas
+		if (TRUE_pontos_x.length==5) {
+			alert("Envelope de 5 pontos");
+		        fechar5pontos();
+		}
+//Varios ELSES , de 6 esquinas
+		if (TRUE_pontos_x.length==6) {
+			alert("Envelope de 6 pontos");
+		        fechar6pontos();
+		}
+
+/////////fim do else
+	}
+
+//Enviamos as informações ao servidor
+
+	for ( i = 0; i < POLIGONO_TRUE_pontos_x.length; i++) {
+//		dados_GNU=dados_GNU+POLIGONO_TRUE_pontos_x[i]+"  "+POLIGONO_TRUE_pontos_y[i]+"%5Cn"; //%5Cn
+	}
+//////////////////////////////////////////
+}
+
+var ANGULADOS_TRUE_pontos_x=[];
+var ANGULADOS_TRUE_pontos_y=[];
+
+var POLIGONO_TRUE_pontos_x=[];
+var POLIGONO_TRUE_pontos_y=[];
+
+/*
+Função para calcular o ângulo dado 3 pontos
+*/
+
+function calcular_angulo(ponto_inicial_x,ponto_inicial_y, i, j)
+{
+        //ponto inicial
+        //Será preciso calcular as normas
+        // e até um produto inter
+        //Vetorizando
+        var vetor_1_x=TRUE_pontos_x[i]-ponto_inicial_x;
+        var vetor_1_y=TRUE_pontos_y[i]-ponto_inicial_y;
+        //ponto final
+        var vetor_2_x=TRUE_pontos_x[j]-ponto_inicial_x;
+        var vetor_2_y=TRUE_pontos_y[j]-ponto_inicial_y;
+
+        //normas
+
+        //vetor_1
+
+        var norma_1=Math.sqrt(vetor_1_x*vetor_1_x-0.0+vetor_1_y*vetor_1_y);
+
+        var norma_2=Math.sqrt(vetor_2_x*vetor_2_x-0.0+vetor_2_y*vetor_2_y);
+
+        //Produto interno
+
+        var interno=vetor_1_x*vetor_2_x-0.0+vetor_1_y*vetor_2_y;
+
+        var argumento=interno/(norma_1*norma_2);
+
+        var angulo=Math.acos(argumento);
+
+        return (angulo*180)/Math.PI;
+}
+
+function getAllIndexes(arr, val) {
+    var indexes = [], i = -1;
+    while ((i = arr.indexOf(val, i+1)) != -1){
+        indexes.push(i);
+    }
+    return indexes;
+}
+/*
+Ordenamos os quautro (04) pontos 
+*/
+
+function fecharPONTOS( ) {
+
+    //Fazemos um estudo MASSIVO dos pontos
+    //Estudo inicial partendo do primeiro ponto, que será um estudo especial dado que
+    // não sabemos qual é o primeiro ângulo interno da área
+
+    var numeros=[];
+//Preparaos o array de numeração conforme a dimensão do TRUE_pontos_x
+    for(i=0;i<TRUE_pontos_x.length;i++)
+    {
+        numeros.push(i);
+    }
+
+
+//Fazemos a varredura dos pares para obter o ângulo.
+//Solução rápida: Invocar a função várias vezes
+
+    var ponto_inicial_x = TRUE_pontos_x[0];
+    var ponto_inicial_y = TRUE_pontos_y[0];
+
+    var angulo_temporal=0.0;
+    var i_temp=0,j_temp=0;
+
+    for (i = 1; i < TRUE_pontos_x.length; i++)
+    {
+        for(j=i+1; j<TRUE_pontos_x.length;j++)
+        {
+            var angulo=calcular_angulo(ponto_inicial_x,ponto_inicial_y,i,j);
+
+            if(angulo>=angulo_temporal)
+            {
+                angulo_temporal=angulo;
+                i_temp=i;
+                j_temp=j;
+            }
+        }
+    }
+
+    ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+    ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+    ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[0]);
+    ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[0]);
+
+    ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[i_temp]);
+    ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[i_temp]);
+
+//Extremo para ser estudado:
+
+    var ANTIGO_i_temp=i_temp;
+    var ANTIGO_j_temp=j_temp;
+
+    //Estudo inicial partendo do primeiro ponto
+    ponto_inicial_x = TRUE_pontos_x[ANTIGO_i_temp];
+    ponto_inicial_y = TRUE_pontos_y[ANTIGO_i_temp];
+
+    var ponto_inicial_x_CONTRA = TRUE_pontos_x[ANTIGO_j_temp];
+    var ponto_inicial_y_CONTRA = TRUE_pontos_y[ANTIGO_j_temp];
+
+//Tendo 3 ptos. Será preciso apenas detetar os outros
+// No caso de apenas 4 pontos, aqui deve concluir o algoritmos
+    angulo_temporal=0.0;
+
+    for(j=1; j<TRUE_pontos_x.length;j++) //acima de 0 (Antigo Ponto Inicial)
+    {
+        if(j!=ANTIGO_i_temp)
+        {
+            var angulo=calcular_angulo(ponto_inicial_x, ponto_inicial_y, 0,j);
+
+            if(angulo>=angulo_temporal)
+            {
+                angulo_temporal=angulo;
+                j_temp=j;
+            }
+        }
+    }
+
+    ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+    ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+    for(i=0;i<ANGULADOS_TRUE_pontos_x.length;i++)
+    {
+        POLIGONO_TRUE_pontos_x.push(ANGULADOS_TRUE_pontos_x[i]);
+        POLIGONO_TRUE_pontos_y.push(ANGULADOS_TRUE_pontos_y[i]);
+    }
+
+//alert("angulo_GLOBAL "+angulo_GLOBAL);
+
+	construir_COM_POLIGONO_TRUE_pontos(angulo_GLOBAL,tauXY);
+}
+
+/*
+
+*/
+
+//Marco10
+//Ordenamos os 5 pontos
+function fechar5pontos()
+{
+
+
+     //Fazemos um estudo MASSIVO dos 6 pontos
+     //Estudo inicial partendo do primeiro ponto
+
+     var numeros=[];
+//Por segurança limpamos a lista
+     numeros.push(1);
+     numeros.push(2);
+     numeros.push(3);
+     numeros.push(4);
+     numeros.push(5);
+
+     var ponto_inicial_x = TRUE_pontos_x[0];
+     var ponto_inicial_y = TRUE_pontos_y[0];
+
+//Fazemos a varredura dos pares para obter o ângulo.
+//Aqui será um duplo for para justamente poder obter o primeiro segmento
+
+     var angulo_temporal=0.0;
+     var i_temp=0,j_temp=0;
+
+     for ( i = 1; i < TRUE_pontos_x.length; i++)
+     {
+         for( j=i+1; j<TRUE_pontos_x.length;j++)
+         {
+             var angulo=calcular_angulo(ponto_inicial_x,ponto_inicial_y,i,j);
+
+             if(angulo>=angulo_temporal)
+             {
+                 angulo_temporal=angulo;
+                 i_temp=i;
+                 j_temp=j;
+             }
+
+         }
+     }
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[0]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[0]);
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[i_temp]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[i_temp]);
+
+        numeros.splice(numeros.indexOf(i_temp),1);
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+//Ele pega o maior ângulo, dado que envolve uma figura....
+
+//Eliminamos o primeiro elemento.
+
+//Extremo para ser estudado:
+
+     var ANTIGO_i_temp=i_temp;
+     var ANTIGO_j_temp=j_temp;
+
+     //Estudo inicial partendo do primeiro ponto
+     ponto_inicial_x = TRUE_pontos_x[ANTIGO_i_temp];
+     ponto_inicial_y = TRUE_pontos_y[ANTIGO_i_temp];
+
+     var ponto_inicial_x_CONTRA = TRUE_pontos_x[ANTIGO_j_temp];
+     var ponto_inicial_y_CONTRA = TRUE_pontos_y[ANTIGO_j_temp];
+
+     //Fazemos a varredura dos pares para obter o ângulo.
+
+     angulo_temporal=0.0;
+
+     for(j=1; j<TRUE_pontos_x.length;j++) //acima de 0 (Antigo Ponto Inicial)
+     {
+         if(j!=ANTIGO_i_temp)
+         {
+             var angulo=calcular_angulo(
+                     ponto_inicial_x,
+                     ponto_inicial_y,
+                     0,
+                     j);
+
+             if(angulo>=angulo_temporal)
+             {
+                 angulo_temporal=angulo;
+                 j_temp=j;
+             }
+         }
+     }
+
+
+        numeros.splice(numeros.indexOf(j_temp),1);
+
+     ANGULADOS_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+     ANGULADOS_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+
+//Domingo
+// Agora do outro lado
+
+     angulo_temporal=0.0;
+
+     for( j=1; j<TRUE_pontos_x.length;j++) //acima de 0 (Antigo Ponto Inicial)
+     {
+         if(j!=ANTIGO_j_temp)
+         {
+
+             angulo=calcular_angulo(
+                     ponto_inicial_x_CONTRA,
+                     ponto_inicial_y_CONTRA,
+                     0,
+                     j);
+
+             if(angulo>=angulo_temporal)
+             {
+                 angulo_temporal=angulo;
+                 i_temp=0;
+                 j_temp=j;
+             }
+         }
+     }
+
+     POLIGONO_TRUE_pontos_x.push(TRUE_pontos_x[j_temp]);
+     POLIGONO_TRUE_pontos_y.push(TRUE_pontos_y[j_temp]);
+
+     for(i=0;i<ANGULADOS_TRUE_pontos_x.length;i++)
+     {
+         POLIGONO_TRUE_pontos_x.push(ANGULADOS_TRUE_pontos_x[i]);
+         POLIGONO_TRUE_pontos_y.push(ANGULADOS_TRUE_pontos_y[i]);
+     }
+
+//alert("angulo_GLOBAL "+angulo_GLOBAL);
+
+     construir_COM_POLIGONO_TRUE_pontos(angulo_GLOBAL,tauXY);
+////////////////////
+}
+
+
+/*
+Visualizar, com ajuda do GNUplot, poupa tempo de depuração
+
+*/
+
+function envio_gnu()
+{
+
+//antigo http://192.168.250.1/setembro/graficas_janeiro/diagramacao/gnu_registrar.php
+    var d = new Date();
+    var n = d.getTime();
+
+baseURL="http://ven2020.com.br/agosto2017/arquitetando/gnu_registrar.php";
+baseURL="http://192.168.250.1/setembro/graficas_janeiro/diagramacao/gnu_registrar.php";
+
+    var theUrl=baseURL+"?identificador="+angulo+"_TENSAO_web_"+n+"&dados="
++	dados_GNU;
+
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function() { 
+        if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+            callback(xmlHttp.responseText);
+    }
+    xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+    xmlHttp.send(null);
+}
+
+// Informamos as saídas na tela
+
+//Enviamos as informações ao servidor
+
+$(document).ready(function(){
+
+        $("#entrada_theta").text(angulo);
+        $("#entrada_sigma_x").text(sigX);
+        $("#entrada_sigma_y").text(sigY);
+        $("#entrada_tau_xy").text(tauXY);
+	$("#lamina_url").text("Lamina de: "+nome);
+	$("#SIGMA_T_1").text(SIGMA_T_1);
+	$("#SIGMA_T_2").text(SIGMA_T_2);
+	$("#SIGMA_C_1").text(SIGMA_C_1);
+	$("#SIGMA_C_2").text(SIGMA_C_2);
+	$("#TAU12").text(TAU12);
+
+//Colocamos os vértices para facilitar o auto-teste
+
+//completo_url=window.location.href+"criterios/maxima_tensao.htm?/"+angulo_theta+"/"+lamina+"/00/"+entrada_sigma_x+"/"+entrada_sigma_y+"/"+entrada_tau_xy+"/0/";
+//		completo_url=base_url+"criterios/"+criterioNOME+".htm?/"+angulo_theta+"/"+lamina+"/00/"+entrada_sigma_x+"/"+entrada_sigma_y+"/"+entrada_tau_xy+"/0/";
+
+
+	calculo_conforme_angulo(angulo,tauXY);
+//facilitamos pular de um envelope para outro
+
+
+	document.getElementById("envelope_max_tensao").setAttribute('href', "./maxima_tensao.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_max_deformacao").setAttribute('href', "./maxima_deformacao.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_tsai_hill").setAttribute('href', "./tsai_hill.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+
+	document.getElementById("envelope_azzi_tsai").setAttribute('href', "./azzi_tsai.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_tsai_wu").setAttribute('href', "./tsai_wu.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_hoffman").setAttribute('href', "./hoffman.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+
+	document.getElementById("envelope_hashin").setAttribute('href', "./hashin.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_christensen").setAttribute('href', "./christensen.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_puck").setAttribute('href', "./puck.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+	document.getElementById("envelope_larc03").setAttribute('href', "./larc03.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY);
+
+
+	envio_gnu();
+///////////
+});
+
+
+</script>
+
+<script src="./maxima_tensao/ordenar_quatro_pontos.js">
+/*************** script script script script
+
+Ordena os quatro pontos no caso que o envelope seja de apenas 4 pontos
+
+Usada apenas quanto for um multiplo de (Pi/2)
+
+*************** script script script script----------------*/
+</script>
+
+<script src="./maxima_tensao/equacoes_41_412.js">
+/*************** script script script script
+
+1) Calcular os pontos de interseção
+2) 
+
+*************** script script script script----------------*/
+</script>
+
+<script src="./maxima_tensao/usar_GraphView.js">
+/*************** script script script script
+
+Representação gráfica simples
+
+*************** script script script script----------------*/
+</script>
+
+<script src="./maxima_tensao/construir_COM_POLIGONO_TRUE_pontos.js">
+/*************** script script script script
+
+Representação gráfica simples
+
+*************** script script script script----------------*/
+</script>
+
+
+</head>
+
+<body>
+
+<div class="container">
+  <div class="row">
+    <div class="col-sm-4">
+	<div class="jumbotron text-center">
+	  <p>Critério de Máxima Tensão:<br>
+	  </p><p>Entrada:<br></p> 
+		Ângulo: <label id="entrada_theta">11</label> (Degree) <br> 
+		σ<sub>x</sub>: <label id="entrada_sigma_x">247935000</label> (Pa) <br>
+		σ<sub>y</sub>: <label id="entrada_sigma_y">02</label> (Pa) <br>
+		τ<sub>xy</sub>: <label id="entrada_tau_xy">03</label> (Pa) <br>
+		<label id="lamina_url">Lamina de: IM7_5250-4</label><br>
+		Propriedades mecânicas desta lâmina:<br> 
+		(σ<sub>1</sub>)<sub>T</sub><sup>U</sup>:  <label id="SIGMA_T_1"></label> (Pa) <br>
+		(σ<sub>2</sub>)<sub>T</sub><sup>U</sup>:  <label id="SIGMA_T_2"></label> (Pa) <br>
+		(σ<sub>1</sub>)<sub>C</sub><sup>U</sup>:  <label id="SIGMA_C_1"></label> (Pa) <br>
+		(σ<sub>2</sub>)<sub>C</sub><sup>U</sup>:  <label id="SIGMA_C_2"></label> (Pa) <br>
+		(τ<sub>12</sub>)<sub>U</sub>:  <label id="TAU12"></label> (Pa) <br>
+	</div>
+
+	<div class="jumbotron text-center">
+	  <p>
+	  Vértices deste envelope<br>
+	(σ<sub>x</sub>,σ<sub>y</sub>)
+	  </p>
+		<a id="vertice_0" href="" target="_blank"/a></a><br>
+		<a id="vertice_1" href="" target="_blank"/a></a><br>
+		<a id="vertice_2" href=""  target="_blank"/a></a><br>
+		<a id="vertice_3" href=""  target="_blank"/a></a><br>
+		<a id="vertice_4" href=""  target="_blank"/a></a><br>
+		<a id="vertice_5" href=""  target="_blank"/a></a><br>
+		<a id="vertice_6" href=""  target="_blank"/a></a><br>
+		<a id="vertice_7" href=""  target="_blank"/a></a><br>
+
+	</div>
+
+	<div class="jumbotron text-center">
+	  <p>
+	  Reproduzir este mesmo envelope usando outros critérios:<br>
+	  </p>
+		<a id="envelope_max_tensao" href="">Máxima Tensão</a><br>
+
+		<a id="envelope_max_deformacao" href="" /a>Máxima Deformação</a><br>
+		<a id="envelope_tsai_hill" href="" >		Tsai Hill</a><br>
+		<a id="envelope_azzi_tsai" href="" >		Azzi Tsai</a><br>
+		<a id="envelope_tsai_wu" href="" >		Tsai-wu</a><br>
+		<a id="envelope_hoffman" href="" >		Hoffman</a><br>
+		<a id="envelope_hashin" href="" >		Hashin</a><br>
+		<a id="envelope_christensen" href="" >		Christensen</a><br>
+		<a id="envelope_puck" href="" >		Puck</a><br>
+		<a id="envelope_larc03" href="" >		Larc03</a><br>
+	</div>
+
+
+    </div>
+<div class="col-sm-8" align="center">
+      <h3>Representação gráfica deste tipo de envelope </h3><br><h4>Plano (σ<sub>x</sub>,σ<sub>y</sub>)</h4>
+<!---Primeiro Gráfico--->
+	<div class="ct-chart ct-golden-section" id="chart1">	</div>
+<!---Segundo Gráfico--->
+	<h4>Plano (σ<sub>1</sub>,σ<sub>2</sub>)</h4>
+	<div class="ct-chart ct-golden-section" id="chart2"></div>
+    </div>
+  </div>
+</div>
+
+</body></html>

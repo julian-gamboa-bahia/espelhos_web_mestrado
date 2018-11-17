@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Envelopes e Critérios de Falha</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+<style>
+/* The Modal (background) */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    padding-top: 100px; /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content */
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+}
+
+/* Botão de fechar */
+.close.close_i {
+    color: #aaaaaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+</style>
+
+
+<script>
+/*
+Agosto 25:
+Abril  09 2018
+
+Recebida informação do URL, automaticamente apresenta a janela modal
+*/
+
+var alteracao_local=0;
+
+url_original=window.location.href;
+var pre_argumentos = url_original.split("?");
+
+var argumentos=pre_argumentos[1].split("/");
+
+	var angulo=argumentos[1];
+	var laminaURL=argumentos[2];
+	var criterioURL=argumentos[3];
+
+	var sigX=argumentos[4];
+	var sigY=argumentos[5];
+	var tauXY=argumentos[6];
+
+
+	var criterioNOME="maxima_tensao";
+	var criterio=1;
+
+	var ARRAYcriterioNOME=["","maxima_tensao","maxima_deformacao","tsai_hill","azzi_tsai","tsai_wu",
+			"hoffman","hashin","christensen","puck","larc03"];
+
+$(document).ready(function(){
+        $("#entrada_theta").val(angulo);
+        $("#entrada_sigma_x").val(sigX);
+        $("#entrada_sigma_y").val(sigY);
+        $("#entrada_tau_xy").val(tauXY);
+	$("#lamina_url").html("Lamina escolhida por URL, com número identificador: <br>"+laminaURL+"  no banco de dados.");
+	$("#criterio_url").html("Critério escolhida por URL, com número identificador: <br>"+criterioURL+"  no banco de dados.");
+
+//Se r a janela modal com as informações recebidas pelo parser
+	
+	criterioNOME=ARRAYcriterioNOME[criterioURL];
+//	alert("criterioURL  "+criterioURL);
+	ativar_modal(alteracao_local);
+
+});
+
+
+</script>
+<!----------------------------------------------Um pouqinho de controle JavaScript AJAX----------------------------->  
+<script>
+
+$.getJSON("macro_laminas.json", function(dados) {
+        E1=dados[lamina].E1;
+        E2=dados[lamina].E2;
+        NU12=dados[lamina].NU12;
+
+        G12=dados[lamina].G12;
+
+	S_11=1/E1;
+	S_12=(-NU12)/(E1);
+	S_22=1/E2;
+	S_66=1/G12;
+});
+
+
+
+/*
+Abril 09
+ Este se colocam como indefinidos inicialmente para pode identificar cada caso : 
+Caso 1: 
+
+---recebe todos os argumentos pelo URL 
+
+Caso 2: 
+
+---Recebeu, mas agora quero trocar algum valor
+
+
+*/
+
+
+var angulo_theta; 
+var entrada_sigma_x; 
+var entrada_sigma_y; 
+var entrada_tau_xy; 
+
+var entrada_epsilon_x=0.0;
+var entrada_epsilon_y=0.0;
+var entrada_gamma_xy=0.0;
+
+var lamina=1;
+
+$(document).ready(function(){
+
+//colocamos a lamina que passou por argumentos
+
+	if(laminaURL!=undefined)
+	{
+		$(".laminas").val(laminaURL);
+	}
+
+
+	if(criterioURL!=undefined)
+	{
+//		alert("criterioURL  "+criterioURL);
+		$(".criterios").val(criterioURL);
+	}
+//Laminas
+    $("select.laminas").change(function(){
+        lamina = $(".laminas option:selected").val();
+	alteracao_local++;
+    });
+
+
+    $("select.criterios").change(function(){
+        criterio = $(".criterios option:selected").val();
+	alteracao_local++;
+//	alert("criterio  "+criterio);
+    });
+//-------> Ângulo 
+    $("#entrada_theta").change(function(){
+	angulo_theta = $("#entrada_theta").val();
+	var n = angulo_theta.length; 
+	if(n>0){
+	        alert("Foi indicada uma rotação da lâmina de "+angulo_theta+" (degree)");
+	}
+
+    });
+//-------> sigma_x
+    $("#entrada_sigma_x").change(function(){
+	entrada_sigma_x = $("#entrada_sigma_x").val(); 
+	var n = entrada_sigma_x.length; 
+	if(n>0){
+	        alert("Foi indicado uma Tensão longitudinal "+$("#entrada_sigma_x").val()+"  (Pa)");
+	}
+    });
+//-------> sigma_y
+    $("#entrada_sigma_y").change(function(){
+	entrada_sigma_y = $("#entrada_sigma_y").val(); 
+	var n = entrada_sigma_y.length; 
+	if(n>0){
+        	alert("Foi indicado uma Tensão transversal "+$("#entrada_sigma_y").val()+"  (Pa)");
+	}
+    });
+//-------> entrada_tau_xy
+    $("#entrada_tau_xy").change(function(){
+	entrada_tau_xy = $("#entrada_tau_xy").val(); 
+	var n = entrada_tau_xy.length; 
+	if(n>0)
+	{
+	        alert("Foi indicado uma Tensão cisalhante "+$("#entrada_tau_xy").val()+"  (Pa)");
+	}	
+    });
+
+////////////// Deformações
+	
+    $("#deformacoes_epsilon_x").change(function(){
+	var entrada = $("#deformacoes_epsilon_x").val(); 
+	var n = entrada.length; 
+	if(n>0){
+	        alert("Foi indicado uma Deformação longitudinal "+$("#deformacoes_epsilon_x").val()+"  (%)");
+	}
+    });
+    $("#deformacoes_epsilon_y").change(function(){
+	var entrada = $("#deformacoes_epsilon_y").val(); 
+	var n = entrada.length; 
+	if(n>0){
+        	alert("Foi indicado uma Deformação transversal "+$("#deformacoes_epsilon_y").val()+"  (%)");
+	}
+    });
+    $("#deformacoes_gamma_xy").change(function(){
+	var entrada = $("#deformacoes_gamma_xy").val(); 
+	var n = entrada.length; 
+	if(n>0)
+	{
+	        alert("Foi indicado uma Deformação cisalhante "+$("#deformacoes_gamma_xy").val()+"  (%)");
+	}	
+    });
+
+//////////////   Botão CHECK  ////////////////////////
+
+
+
+$('#checkbox_deformacoes').click(function() {
+    var checked = $(this).is(':checked');
+
+    if(checked){
+	$("#entrada_sigma_x").attr("disabled", true);
+	$("#entrada_sigma_y").attr("disabled", true);
+	$("#entrada_tau_xy").attr("disabled", true);
+
+	$("#deformacoes_epsilon_x").attr("disabled", false);
+	$("#deformacoes_epsilon_y").attr("disabled", false);
+	$("#deformacoes_gamma_xy").attr("disabled", false);
+
+//Se não tiver os esforços colocados ele suponhe que é zero mesmo 
+	if(angulo_theta==undefined)
+	{
+		angulo_theta=0.0;
+	}
+
+	transformar_esforcos_deformacoes(angulo_theta,tauXY);
+
+
+	}	
+	else	
+	{
+//No caso de ter as deformações, será preciso passar estas como esforços 
+//dado que o sistema todo de o sistema todo trabalha em esforços
+
+		$("#entrada_sigma_x").attr("disabled", false);
+		$("#entrada_sigma_y").attr("disabled", false);
+		$("#entrada_tau_xy").attr("disabled", false);
+
+		$("#deformacoes_epsilon_x").attr("disabled", true);
+		$("#deformacoes_epsilon_y").attr("disabled", true);
+		$("#deformacoes_gamma_xy").attr("disabled", true);
+
+		alert("Trabalhamos com o estado de esforços");//"Trabalhamos com o estado de esforços"
+
+	}
+});
+
+});
+</script>
+
+<!----------------------------------------------------Parte superior do TEMPLATE----------------------------->  
+
+</head>
+<body>
+
+<!----------------------------------------------------Parte superior----------------------------->  
+<div class="jumbotron text-center">
+  <h1>Envelopes e Critérios de Falha</h1>
+  <p>Trabalho de Mestrado do aluno Venezuelano Julian Gamboa.</p> 
+  <p>Sob orientação do professor: Dr. Sandro Amico Campos.</p> 
+</div>
+<!----------------------------------------------------Parte do meio----------------------------->  
+<div class="container">
+  <div class="row">
+    <div class="col-sm-4">
+      <strong id="lamina_url" ></strong>
+      <h3>Material</h3>
+<form>
+    <div class="form-group">
+      <label for="sel2">Lâmina</label>
+      <select  class="laminas" id="sel2">
+<option value="1">1025 Steel</option>
+<option value="2">6061-T6 Alum</option>
+<option value="3">7740G30-500 Graphite</option>
+<option value="4">AS4_3501-6</option>
+<option value="5">AS4_3502</option>
+<option value="6">AS4_8552</option>
+<option value="7">Boron_5505</option>
+<option value="8">E-Glass_Epoxy</option>
+<option value="9">Eglass21xK43Gevetex_LY556</option>
+<option value="10">HM Graphite_Epoxy</option>
+<option value="11" >HTS150_TC250</option>
+<option value="14">IM7_5250-4</option>
+<option value="13">IM7_8551-7</option>
+<option value="12">IM7_8552</option>
+<option value="15">IM7_977-2</option>
+<option value="16">IM7_977-3</option>
+<option value="17">Kevlar-49_Epoxy</option>
+<option value="18">LM Graphite_Epoxy</option>
+<option value="19">S2-Glass_Epoxy</option>
+<option value="20">SilEglass1200tex_MY750</option>
+<option value="21">T300_976</option>
+<option value="22">T300_BSL914C</option>
+<option value="23">T300_VTM266 2x2 3K Twill Weave</option>
+<option value="24">T700_Epoxy</option>
+<option value="25">T800H_3900-2</option>
+<option value="26">Ti-6Al-4v</option>
+<option value="27">UM Graphite_Epoxy</option>
+      </select>
+    </div>
+</form>
+
+
+    </div>
+    <div class="col-sm-4">
+      <h3>Rotação e Estado de esforços 
+<br>
+(&sigma;<sub>x</sub>,
+&sigma;<sub>y</sub>,
+&tau;<sub>xy</sub>)
+</h3>
+
+<label for="usr">
+&theta; (&deg;)
+</label>
+<input type="text" class="form-control" id="entrada_theta" >
+
+
+<label for="usr">
+&sigma;<sub>x</sub> (Pa)
+</label>
+<input type="text" class="form-control" id="entrada_sigma_x">
+
+<label for="usr">
+&sigma;<sub>y</sub> (Pa)
+</label>
+<input type="text" class="form-control" id="entrada_sigma_y">
+
+<label for="usr">
+&tau;<sub>xy</sub> (Pa)
+</label>
+<input type="text" class="form-control" id="entrada_tau_xy">
+
+<h3>
+Usar deformações    <input type="checkbox" id="checkbox_deformacoes" value="deformacoes" ><br>
+(&epsilon;<sub>x</sub>,
+&epsilon;<sub>y</sub>,
+&gamma;<sub>xy</sub>)
+</h3>
+
+<label for="usr">
+&epsilon;<sub>x</sub> (%)
+</label>
+<input class="form-control" id="deformacoes_epsilon_x" type="text" disabled >
+<label for="usr">
+&epsilon;<sub>y</sub> (%)
+</label>
+<input class="form-control" id="deformacoes_epsilon_y" type="text" disabled>
+<label for="usr">
+&gamma;<sub>xy</sub> (%)
+</label>
+<input class="form-control" id="deformacoes_gamma_xy" type="text" disabled>
+
+
+
+</div>
+
+<!---------------------Col 3----------------------------------->
+    <div class="col-sm-4">
+      <strong id="criterio_url"></strong>        
+      <h3>Critério de Falha</h3>        
+<form>
+    <div class="form-group">
+      <label for="sel2">Lâmina</label>
+      <select  class="criterios" id="sel2">
+									  <option value="1">Máxima Tensão</option>
+									  <option value="2">Máxima Deformação</option>
+									  <option value="3">Tsai-Hill</option>
+									  <option value="4">Azzi-Tsai</option>
+									  <option value="5">Tsai-Wu</option>
+									  <option value="6">Hoffman</option>
+									  <option value="7">Hashin</option>
+									  <option value="8">Christensen</option>
+									  <option value="9">Puck</option>
+									  <option value="10">Larc03</option>
+      </select>
+    </div>
+</form>
+
+    </div>
+  </div>
+</div>
+<!----------------------------------------------------Parte INFERIOR--------------height="42" width="42"------->  
+<div class="jumbotron text-center">
+
+
+<p>Calcular:<p>
+<br>
+  <button id="botao_modal_izquerdo" type="button" class="btn"  >Indice de Falha</button>
+  <button id="botao_modal_direito"  type="button" class="btn-primary" >Envelope de Falha</button>
+
+
+<!--------------------------Modal Izquerda------------------
+Agosto 23/2017
+Janela Modal, para saídas do IF
+
+Nest janela, chamamos um IFRAME com o formato:
+
+/ ângulo de rotação da lâmina  / identificar da lâmina do DB (algo assim como o tipo de material) / identificar do critério de falha (algo assim como nome do critério) /(estado de esforços Sigma_X /estado de esforços Sigma_Y / estado de esforços Tau_XY ) / valor interno /
+
+FLEXIBILIDADE:
+
+Par cada critério chamamos um html no iframe.
+-------------------------------------------------------------->
+
+<div id="modal_izquerda" class="modal">
+
+<!-- Modal content -->
+  <div class="modal-content">
+    <span class="close_i">&times;</span>
+  <div>
+<p>
+<br>
+IF<br>
+</p>
+</div>
+	<div class="embed-responsive embed-responsive-4by3"  >
+	  <iframe id="iframe_if" class="embed-responsive-item" src=""  ></iframe>
+<!-- 
+ESTETICA: 
+Usamos uma class para o contéudo EMBEBIDO 4:3 aspect ratio maxima_tensao.htm 
+e usamos um SWICTH para escolher a folha do critério.
+
+-->
+
+	</div>
+</div>
+</div>
+
+<script>
+/*
+$("#xFECHAR").click(function(){
+	alert("Fechar");
+});
+*/
+
+// Get the modal
+var modal_i = document.getElementById('modal_izquerda');
+// Obtemos o botão de ativar a janela Modal Izquerda
+var botao_modal_izquerdo = document.getElementById("botao_modal_izquerdo");
+
+// Get the <span> element that closes the modal
+var span_i = document.getElementsByClassName("close_i")[0];
+// When the user clicks the button, open the modal 
+botao_modal_izquerdo.onclick = function() {
+    modal_i.style.display = "block";
+}
+
+// When the user clicks on <span> (x), close the modal
+span_i.onclick = function() {    modal_i.style.display = "none";}
+
+// When the user clicks anywhere outside of the modal, close it
+
+window.onclick = function(event) {    if (event.target == modal_i) {        modal_i.style.display = "none";    }}
+
+</script>
+
+
+<!--------------------------Modal Direita------------------
+Agosto 20/2017
+Abril  09/2018
+Janela Modal 
+
+-------------------------------------------------------------->
+<div id="myModal" class="modal">
+
+<!--X superior para poder fechar a JANELA -->
+<div class="modal-content">
+    <span class="close" >&times;</span>
+<div>
+<!--Titulos que podem se colocar na janela -->
+<p id="url"></p>
+
+<!--Botões para sistemas lentos -->
+</div>
+  <button id="botao_refresh" type="button" class="btn"  >Carregar Tela</button>
+<div>
+
+</div>
+<!-- 4:3 aspect ratio -->
+	<div class="embed-responsive embed-responsive-4by3"  >
+	  <iframe id="meu_iframe" class="embed-responsive-item"   ></iframe> 
+	</div>
+  </div>
+</div>
+
+<!--------------------------END Modal ------------------
+Abril  09/2018
+Janela Modal 
+
+src="./criterios/maxima_tensao.htm?/-132.602/1/00/247935000/02/0"
+
+-------------------------------------------------------------->
+
+<script>
+//cuidado com os contexto das váriaveis
+
+	var criterioNOME="maxima_tensao";
+	var criterio=1;
+
+	var ARRAYcriterioNOME=["","maxima_tensao","maxima_deformacao","tsai_hill","azzi_tsai","tsai_wu",
+			"hoffman","hashin","christensen","puck","larc03"];
+
+
+// Abril 09, 2018 definimos a janela modal
+var modal = document.getElementById('myModal');
+
+// Vemos o botão 
+var btn_izquerdo = document.getElementById("botao_modal_izquerdo");
+var btn_direito = document.getElementById("botao_modal_direito");
+
+// Usando o botão "INDICE de FALHA" aparece a janela
+/*
+				Nesta função vemos se foram 
+				colocados os elementos 
+				necesarios para invocar os envelopes
+*/
+
+
+							////// Botão Izquerdo: critérios ////
+
+							////// Botão Direito: envelopes ////
+
+
+//fechamos por ESC
+
+window.onkeypress=	function fechar_modal(event) {
+	var x = event.which || event.keyCode;
+	if(x==27)
+	{
+		modal.style.display = "none";
+	}
+}
+
+
+function ativar_modal(alteracao_local)
+{
+//no caso de ter sofrido alterações manualmente
+		if (alteracao_local==0)
+		{
+			lamina=laminaURL;
+		}
+		else
+		{
+			lamina=lamina;
+			if(criterio!=undefined)
+			{
+				criterioNOME=ARRAYcriterioNOME[criterio];
+			}
+		}
+//o criterio é colocado conforme o valor de criterio
+
+
+			var url_original=window.location.href;
+			var base_url = url_original.split("?")[0];
+
+// no caso de que não tivesse sido alterado nada por TELA pode-se usar os valores WEB (recebidos por URL)s
+
+			//alert("angulo_theta   "+angulo_theta);
+
+			if(angulo_theta==undefined)
+			{
+				angulo_theta=angulo;
+			}
+
+			if(entrada_sigma_x==undefined)
+			{
+				entrada_sigma_x=sigX;
+			}
+
+			if(entrada_sigma_y==undefined)
+			{
+				entrada_sigma_y=sigY;
+			}
+
+			if(entrada_tau_xy==undefined)
+			{
+				entrada_tau_xy=tauXY;
+			}
+
+			
+			completo_url=base_url+"criterios/"+criterioNOME+".htm?/"+angulo_theta+"/"+lamina+"/00/"+entrada_sigma_x+"/"+entrada_sigma_y+"/"+entrada_tau_xy+"/0/";
+//			alert("completo_url  "+completo_url);
+
+			completo_url_envelopes=base_url+"envelopes/"+criterioNOME+".htm?/"+angulo_theta+"/"+lamina+"/00/"+entrada_sigma_x+"/"+entrada_sigma_y+"/"+entrada_tau_xy+"/0/";
+			meu_iframe.src=completo_url; 
+			document.getElementById("url").innerHTML ="Critério <a href=\""+completo_url+"\" target=\"_black\">"+completo_url+"</a><br> Envelope:  <a href=\""+completo_url_envelopes+"\" target=\"_black\">"+completo_url+"</a><br><br>";
+	modal.style.display = "block";
+}	
+</script>
+
+<script src="./index/btn_izquerdo.js">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+<script src="./index/btn_direito.js">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./index/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./index/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+<script src="./index/">
+/*************** script script script script
+
+*************** script script script script----------------*/
+</script>
+
+
+</div>
+
+</body>
+</html>
+

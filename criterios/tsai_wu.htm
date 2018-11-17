@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Critério de Tsai Wu</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+
+<script>
+/*
+Agosto 25:
+Usamos o mesmo sistema de PARSER 
+
+*/
+
+url_original=window.location.href;
+var pre_argumentos = url_original.split("?");
+var argumentos=pre_argumentos[1].split("/");
+
+	var angulo=argumentos[1];
+	var laminaURL=argumentos[2];
+	var criterio=argumentos[3];
+	var sigX=argumentos[4];
+	var sigY=argumentos[5];
+	var tauXY=argumentos[6];
+var limpar=argumentos[7];
+var biaxial_experimental=argumentos[8];
+
+if(biaxial_experimental==undefined)
+{
+    var entrada = prompt("Por favor indique o paramêtro biaxxial", "0.1");
+    if (entrada != null) {
+	var biaxial_experimental=entrada;
+    }
+}
+
+// Procuramos no JSON 
+
+var laminaURL_numerico=parseInt(laminaURL)-1;
+
+
+
+$.getJSON("macro_laminas.json", function(dados) {
+        nome=dados[laminaURL_numerico].NOME;
+        SIGMA_T_1=dados[laminaURL_numerico].SIGMA_T_1;
+        SIGMA_T_2=dados[laminaURL_numerico].SIGMA_T_2;
+        SIGMA_C_1=dados[laminaURL_numerico].SIGMA_C_1;
+        SIGMA_C_2=dados[laminaURL_numerico].SIGMA_C_2;
+        TAU12=dados[laminaURL_numerico].TAU12;
+});
+
+alert("Resultados comparativos");
+
+// O critério códificado em forma simples:
+
+function criterio_tsai_wu(sigma_x,sigma_y,tau_xy,theta,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12,biaxial_experimental){
+	
+	theta_radianos=(Math.PI/180)*theta;
+
+	c=Math.cos(theta_radianos);
+	s=Math.sin(theta_radianos);
+	c2=c*c;
+	s2=s*s;
+	sigma_1=c2*sigma_x+s2*sigma_y+2*c*s*tau_xy;
+	sigma_2=s2*sigma_x+c2*sigma_y-2*c*s*tau_xy;
+	tau_12=-s*c*sigma_x+s*c*sigma_y+(c2-s2)*tau_xy;
+
+// Neste critério o IF deve ser único, mas fazemos a composição por partes para que fique bem didático
+// Por ser um poucpo extenso então usamos 
+
+	componente_potencia_1_sigma_1=sigma_1*((1/SIGMA_T_1)-(1/SIGMA_C_1));
+	componente_potencia_1_sigma_2=sigma_2*((1/SIGMA_T_2)-(1/SIGMA_C_2));
+
+	componente_potencia_2_sigma_1=(sigma_1*sigma_1)*(1/(SIGMA_T_1*SIGMA_C_1));
+	componente_potencia_2_sigma_2=(sigma_2*sigma_2)*(1/(SIGMA_T_2*SIGMA_C_2));	
+
+	componente_potencia_2_tau_12=(tau_12*tau_12)*(1/(TAU12*TAU12));	
+
+//Previo ao compoente experimental 
+
+	F12_potencia_1=((1/SIGMA_T_1)-(1/SIGMA_C_1)+(1/SIGMA_T_2)-(1/SIGMA_C_2))*biaxial_experimental;
+	F12_potencia_2=((1/(SIGMA_T_1*SIGMA_C_1))+(1/(SIGMA_T_2*SIGMA_C_2)))*biaxial_experimental*biaxial_experimental;
+	F12_sem_normalizar=1-F12_potencia_1-F12_potencia_2;
+	F12=F12_sem_normalizar/(2*biaxial_experimental*biaxial_experimental)
+
+	componente_experimental=2*sigma_1*sigma_2*F12;
+
+	somando=componente_potencia_1_sigma_1+componente_potencia_1_sigma_2+componente_potencia_2_sigma_1+componente_potencia_2_sigma_2+componente_potencia_2_tau_12+componente_experimental;
+//Lembremos que o IF é a raíz quadrada
+	if_unico=somando
+
+	return if_unico;
+}
+
+// Informamos as saídas:
+
+$(document).ready(function(){
+
+	var funcao_if=criterio_tsai_wu(sigX,sigY,tauXY,angulo,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12,biaxial_experimental);
+
+        $("#entrada_theta").text(angulo);
+        $("#entrada_sigma_x").text(sigX);
+        $("#entrada_sigma_y").text(sigY);
+        $("#entrada_tau_xy").text(tauXY);
+
+        $("#entrada_sigma_biaxial").text(biaxial_experimental);
+
+	$("#lamina_url").text("Lamina de: "+nome);
+	$("#SIGMA_T_1").text(SIGMA_T_1);
+	$("#SIGMA_T_2").text(SIGMA_T_2);
+	$("#SIGMA_C_1").text(SIGMA_C_1);
+	$("#SIGMA_C_2").text(SIGMA_C_2);
+	$("#TAU12").text(TAU12);
+	$("#funcao_if_unica").text(funcao_if);
+
+//facilitamos pular de um envelope para outro
+
+
+	document.getElementById("envelope_max_tensao").setAttribute('href', "./maxima_tensao.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_max_deformacao").setAttribute('href', "./maxima_deformacao.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_tsai_hill").setAttribute('href', "./tsai_hill.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+	document.getElementById("envelope_azzi_tsai").setAttribute('href', "./azzi_tsai.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+//document.getElementById("envelope_tsai_wu").setAttribute('href', "./tsai_wu.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_hoffman").setAttribute('href', "./hoffman.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+
+	document.getElementById("envelope_hashin").setAttribute('href', "./hashin.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY+"/");
+
+	document.getElementById("envelope_christensen").setAttribute('href', "./christensen.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_puck").setAttribute('href', "./puck.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+	document.getElementById("envelope_larc03").setAttribute('href', "./larc03.htm?/"+angulo+"/"+laminaURL+"/00/"+sigX+"/"+sigY+"/"+tauXY);
+//	WU
+	document.getElementById("envelope_tsai_wu").setAttribute('href', "./tsai_wu.htm?/"+angulo+"/"+laminaURL+"/00/247935000/02/"+tauXY+"/xx/"+biaxial_experimental);
+
+
+
+
+    $.getJSON("macro_laminas.json", function(dados) {
+
+	primeira_coluna=parseInt(dados.length/2);    
+
+    for(var i=0; i<primeira_coluna; i++) {
+	var funcao_if=criterio_tsai_wu(sigX,sigY,tauXY,angulo,dados[i].SIGMA_T_1,dados[i].SIGMA_T_2,dados[i].SIGMA_C_1,dados[i].SIGMA_C_2,dados[i].TAU12,biaxial_experimental);
+        $("#coluna_2").append('<div><b>(' + dados[i].id+')  '+dados[i].NOME+'</b>'+"<br> IF : "+funcao_if+"</div>");
+    }
+
+    for(var i=primeira_coluna; i<dados.length; i++) {
+	var funcao_if=criterio_tsai_wu(sigX,sigY,tauXY,angulo,dados[i].SIGMA_T_1,dados[i].SIGMA_T_2,dados[i].SIGMA_C_1,dados[i].SIGMA_C_2,dados[i].TAU12,biaxial_experimental);
+        $("#coluna_3").append('<div><b>(' + dados[i].id+')  '+dados[i].NOME+'</b>'+"<br> IF : "+funcao_if+"</div>");
+    }
+
+    });
+
+});
+
+
+</script>
+</head>
+
+<body>
+
+<div class="jumbotron text-center">
+  <p>Critério de Tsai Wu:<br>
+
+  <p>Entrada:<br>
+
+</p> 
+
+Ângulo: <label  id="entrada_theta" ></label> (Degree) <br> 
+&sigma;<sub>x</sub>: <label  id="entrada_sigma_x" ></label> (Pa) <br>
+&sigma;<sub>y</sub>: <label  id="entrada_sigma_y" ></label> (Pa) <br>
+&tau;<sub>xy</sub>: <label  id="entrada_tau_xy" ></label> (Pa) <br>
+<h4>		σ<sub>biaxial</sub>: <label id="entrada_sigma_biaxial">02</label> (Pa) </h4>
+<label  id="lamina_url" ></label><br>
+Propriedades mecânicas desta lâmina:<br> 
+(&sigma;<sub>1</sub>)<sub>T</sub><sup>U</sup>:  <label  id="SIGMA_T_1" ></label> (Pa) <br>
+(&sigma;<sub>2</sub>)<sub>T</sub><sup>U</sup>:  <label  id="SIGMA_T_2" ></label> (Pa) <br>
+(&sigma;<sub>1</sub>)<sub>C</sub><sup>U</sup>:  <label  id="SIGMA_C_1" ></label> (Pa) <br>
+(&sigma;<sub>2</sub>)<sub>C</sub><sup>U</sup>:  <label  id="SIGMA_C_2" ></label> (Pa) <br>
+(&tau;<sub>12</sub>)<sub>U</sub>:  <label  id="TAU12" ></label> (Pa) <br>
+
+      <h3>IF:</h3>
+      IF : <label  id="funcao_if_unica" ></label><br>
+
+</div>
+  
+<div class="container">
+  <div class="row">
+    <div class="col-sm-4">
+	<div class="jumbotron text-center">
+	  <p>
+	  Reproduzir este mesmo envelope usando outros critérios:<br>
+	  </p>
+		<a id="envelope_max_tensao" href="">Máxima Tensão</a><br>
+
+		<a id="envelope_max_deformacao" href="" /a>Máxima Deformação</a><br>
+		<a id="envelope_tsai_hill" href="" >		Tsai Hill</a><br>
+		<a id="envelope_azzi_tsai" href="" >		Azzi Tsai</a><br>
+		<a id="envelope_tsai_wu" href="" >		Tsai-wu</a><br>
+		<a id="envelope_hoffman" href="" >		Hoffman</a><br>
+		<a id="envelope_hashin" href="" >		Hashin</a><br>
+		<a id="envelope_christensen" href="" >		Christensen</a><br>
+		<a id="envelope_puck" href="" >		Puck</a><br>
+		<a id="envelope_larc03" href="" >		Larc03</a><br>
+	</div>
+    </div>
+    <div class="col-sm-4" id="coluna_2">
+      <h3>IF com outros materiais</h3>
+    </div>
+    <div class="col-sm-4" id="coluna_3">
+      <h3>IF com outros materiais</h3>        
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
+
