@@ -45,38 +45,7 @@ $.getJSON("macro_laminas.json", function(dados) {
 
 alert("Resultados comparativos");
 
-// O critério códificado em forma simples:
-
-/*
-#Criterio: Hoffman
-#Carga: Tensao
-def calc_IF_hoffman(sigmaX, sigmaY, tauXY, sig_T_1, sig_C_1, sig_T_2, sig_C_2, tau12_lam, ang):
-    locais = converte_sigma_global_local(sigmaX, sigmaY, tauXY, ang)
-    sigma1 = locais[0]
-    sigma2 = locais[1]
-    tau12 = locais[2]
-    
-    H = (-1.0)/(2*sig_T_1*sig_C_1)
-    
-    aux1_1 = (1.0/sig_T_1) - (1.0/sig_C_1)
-    aux1 = sigma1*aux1_1
-    
-    aux2_1 = (1.0/sig_T_2) - (1.0/sig_C_2)
-    aux2 = sigma2*aux2_1
-    
-    aux3 = pow(sigma1, 2)/(sig_T_1*sig_C_1)
-    
-    aux4 = pow(sigma2, 2)/(sig_T_2*sig_C_2)
-    
-    aux5 = pow(tau12, 2)/tau12_lam
-    
-    aux6 = 2*H*sigma1*sigma2
-    
-    IF = aux1 + aux2 + aux3 + aux4 + aux5 + aux6
-    return abs(IF)
-*/
-
-function criterio_azzi_tsai(sigma_x,sigma_y,tau_xy,theta,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12){
+function criterio_hoffman(sigma_x,sigma_y,tau_xy,theta,SIGMA_T_1,SIGMA_T_2,SIGMA_C_1,SIGMA_C_2,TAU12){
 	
 	theta_radianos=(Math.PI/180)*theta;
 
